@@ -1,0 +1,2 @@
+gripper_pose cube
+cube shape_sorter

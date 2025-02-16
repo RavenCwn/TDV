@@ -1,0 +1,2 @@
+gripper_pose bulb0
+bulb0 lamp_screw

@@ -1,0 +1,2 @@
+gripper_pose wine_bottle
+wine_bottle rack

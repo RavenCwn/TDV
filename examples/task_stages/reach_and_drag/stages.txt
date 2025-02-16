@@ -1,0 +1,2 @@
+gripper_pose stick
+stick cube

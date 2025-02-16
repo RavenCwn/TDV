@@ -1,0 +1,39 @@
+import os
+import argparse
+import time
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--root_dir", "-d", 
+                        default="./data")
+    parser.add_argument("--config_name", "-c", 
+                        default="coordiff")
+    parser.add_argument("--work_dir", "-w", 
+                        default=None)
+    args = parser.parse_args()
+    
+    root_dir = args.root_dir
+    # task_dir_list = os.listdir(root_dir)
+    # task_dir_list.sort()
+    
+
+    CONFIG_NAME = args.config_name
+    task_list = ['close_jar']
+    
+    work_dir = "./results/coordiff"
+
+    if args.work_dir is None:
+        work_dir = os.path.join(work_dir, f"{time.strftime('%m-%d_%H-%M-%S')}")
+    else:
+        work_dir = os.path.join(work_dir, args.work_dir, f"{time.strftime('%m-%d_%H-%M-%S')}")
+
+    os.makedirs(work_dir)
+
+    for task in task_list:
+        for seed in range(1):
+            commond = (f'python -m coordiff.engine.train2 --config-name={CONFIG_NAME}'
+                        f' train_dataset="{root_dir}" val_dataset="{root_dir}"'
+                        f' seed={seed}'
+                        f' +task_list={task_list}'
+                        f" +work_dir={work_dir}")
+            os.system(commond)

@@ -1,0 +1,2 @@
+gripper_pose jar_lid0
+jar_lid0 jar0

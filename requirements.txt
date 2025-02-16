@@ -1,0 +1,9 @@
+hydra-core
+omegaconf
+diffusers
+transformers
+easydict
+einops
+timm
+gymnasium
+# pytorch3d

@@ -1,0 +1,2 @@
+gripper_pose mug0
+mug0 place_cups_holder_spoke0

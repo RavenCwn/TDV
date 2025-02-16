@@ -1,0 +1,2 @@
+gripper_pose dollar_stack
+dollar_stack dummy_shelf0

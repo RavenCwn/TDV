@@ -1,0 +1,2 @@
+gripper_pose square_ring
+square_ring pillar0

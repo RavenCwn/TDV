@@ -1,0 +1,4 @@
+gripper_pose cup1
+cup1 cup2
+grippe_pose cup3
+cup3 cup1

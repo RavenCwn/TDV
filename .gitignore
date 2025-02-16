@@ -1,0 +1,14 @@
+bert
+*.mp4
+all_data
+recollect_data
+retrive_data/
+test_save/
+wandb/
+results/
+save/
+*.tar.gz
+.vscode/
+__pycache__/
+*/__pycache__/
+*.egg-info/

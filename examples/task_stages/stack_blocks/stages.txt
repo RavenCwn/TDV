@@ -1,0 +1,4 @@
+gripper_pose stack_blocks_target0
+stack_blocks_target0 stack_blocks_target_plane
+gripper_pose stack_blocks_target1
+stack_blocks_target1 stack_blocks_target_plane
