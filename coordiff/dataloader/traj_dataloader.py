@@ -10,10 +10,10 @@ def get_dataloader(replay, mode, num_workers, batch_size):
     loader = DataLoader(
         replay,
         shuffle=(mode == "train"),
-        pin_memory=False,
+        # pin_memory=False,
         batch_size=batch_size,
         num_workers=num_workers,
-        prefetch_factor=4 if num_workers > 0 else None
+        # prefetch_factor=4 if num_workers > 0 else None
     )
     return loader
 
@@ -30,25 +30,27 @@ class TrajDataset(Dataset):
 
         assert mode in ['train', 'val'], "mode must be 'train' or 'val'"
 
+        dataset_dir = osp.join(dataset_dir, mode)
         self.dataset_dir = dataset_dir
         self.mode = mode
         if task_list is None:  # default to all tasks
             self.task_list = os.listdir(dataset_dir)
         else:
             self.task_list = task_list
-        
+
         self.act_chunk = act_chunk
         self.hist_len = hist_len
         
+        # print(self.task_list)
         episode_states = []
         for task in self.task_list:
             task_path = osp.join(dataset_dir, task)
-            task_path = osp.join(task_path, mode)
             # print(task_path)
-            
+
             # 同样的任务具有同样的states
             episodes = sorted(glob(osp.join(task_path, "*")))
             states = os.listdir(episodes[0])
+            # print(states)
             # print(episodes)
 
             for episode in episodes:
@@ -90,7 +92,7 @@ class TrajDataset(Dataset):
         epi, state = episode_state
         relevant_traj = np.load(osp.join(epi, state, "relevant_traj.npy"))
         gripper_change = np.load(osp.join(epi, state, "gripper_change.npy"))
-        task_emb = np.load(osp.join(epi, state, "task_de_embed.npy")).squeeze()
+        task_emb = np.load(osp.join(epi, state, "task_language_embed.npy")).squeeze()
         # print(gripper_change.shape, relevant_traj.shape, task_emb.shape)
 
         demo_len = relevant_traj.shape[0]
@@ -135,10 +137,10 @@ class TrajDataset(Dataset):
 
 if __name__ == "__main__":
     dataset = TrajDataset(
-        dataset_dir="./data",
+        dataset_dir="./recollect_traj_data",
         act_chunk=15,
         hist_len=10,
-        mode='train'
+        mode='val'
     )
     print(len(dataset))
     

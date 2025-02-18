@@ -201,7 +201,7 @@ class StateJudger(nn.Module):
         mix += self.hist_embed
         
         if self.use_language:
-            text = self.lang_encoder().unsqueeze(1)
+            text = self.lang_encoder(text).unsqueeze(1)
             mix = torch.concat([mix, text], dim=1)
         if self.num_states > 1:
             state = self.state_encoder(state).unsqueeze(1)

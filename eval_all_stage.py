@@ -107,12 +107,13 @@ def start(task, args, cfg, tz, bert):
     rlbench_env = Environment(
         action_mode=MoveArmThenGripper(EndEffectorPoseViaPlanning(), Discrete()),
         obs_config=ObservationConfig(),
-        headless=True)
+        headless=False)
     rlbench_env.launch()
 
     task_env = rlbench_env.get_task(task)
-    # task_env.set_variation(args.variations)
+    task_env.set_variation(0)
     task_description, obs = task_env.reset()
+    print("task_description: ", task_description)
     
 
     task = task_env._task
@@ -124,7 +125,7 @@ def start(task, args, cfg, tz, bert):
     rot_type = cfg.rot_type
 
 
-    with open(f"task_stage/{task.get_name()}.txt", "r") as f:
+    with open(f"examples/task_stages/{task_env._task.get_name()}/stages.txt", "r") as f:
         task_stage = f.readlines()
         task_stage = [x.strip().split(' ') for x in task_stage]
     print("task_stage: ", task_stage)
@@ -146,7 +147,8 @@ def start(task, args, cfg, tz, bert):
     done = False
     T_o_g = None
     smooth_idx = -1
-    max_timesteps = 200
+    max_timesteps = 220
+    final_flag = False
 
     arm_model, gripper_model = load_policy(cfg, device)
     DDIM = DDIMScheduler(**cfg.ddim_cfg)
@@ -159,7 +161,7 @@ def start(task, args, cfg, tz, bert):
     all_time_actions = np.zeros([max_timesteps, max_timesteps+act_trunk, input_dim])
 
 
-    for i in tqdm(range(200)):
+    for i in tqdm(range(max_timesteps)):
 
         encode_cache = arm_model.forward_enc(hist_obs, task_emb, state)
      
@@ -182,6 +184,7 @@ def start(task, args, cfg, tz, bert):
         if smooth_idx == -1:
             # gripper_pose = get_abs_action(arm[5], ref_pose, rot_type, T_o_g)
             gripper_pose = obs.gripper_pose
+            gripper_pose[2] -= 0.0001
             stage_change = torch.zeros(1).to(device).long()
             print("init")
         else:
@@ -195,20 +198,26 @@ def start(task, args, cfg, tz, bert):
             # gripper_pose = get_abs_action(arm[0], ref_pose, rot_type, T_o_g)
             gripper_pose = get_abs_action(smooth_action, ref_pose, rot_type, T_o_g)
         smooth_idx += 1
-
+        if not is_valid_quaternion(gripper_pose[3:]):
+            import ipdb; ipdb.set_trace()
+        # assert is_valid_quaternion(gripper_pose[3:]), f"invalid quaternion: {gripper_pose[3:]}"
         action = np.concatenate([gripper_pose, gripper_state])
-        obs, reward, done = task_env.step(action)
+        try:
+            obs, reward, done = task_env.step(action)
+        except Exception as e:
+            print(e)
+            import ipdb; ipdb.set_trace()
 
-        if stage_change:
+        if stage_change and state.item() < 1:
             state += 1
-            state = 1 if state > 1 else state
             print(f"stage_change: {state}")
             gripper_state = 1 - gripper_state
             gripper_pose = obs.gripper_pose
             action = np.concatenate([gripper_pose, gripper_state])
-            obs, reward, done = task_env.step(action)
-            obs, reward, done = task_env.step(action)
-            obs, reward, done = task_env.step(action)
+            for i in range(10):  # 抓取需要时间
+                action[2] -= 0.0001
+                obs, reward, done = task_env.step(action)
+
             if done:
                 break
 
@@ -227,14 +236,19 @@ def start(task, args, cfg, tz, bert):
             ref_pose = get_abs_pose(ref_obj_name, obs, task)
             relative_pose = compute_relative_pose_input(move_pose, ref_pose, rot_type)
 
-            # hist_obs = [torch.from_numpy(relative_pose) for _ in range(hist_len)]
-            # hist_obs = torch.stack(hist_obs, dim=0).unsqueeze(0).to(device).float()
+            hist_obs = [torch.from_numpy(relative_pose) for _ in range(hist_len)]
+            hist_obs = torch.stack(hist_obs, dim=0).unsqueeze(0).to(device).float()
 
-            hist_obs = torch.zeros([hist_len, input_dim]).unsqueeze(0).to(device).float()
+            # hist_obs = torch.zeros([hist_len, input_dim]).unsqueeze(0).to(device).float()
             hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
 
             all_time_actions = np.zeros([max_timesteps, max_timesteps+act_trunk, input_dim])
             smooth_idx = -1
+        elif stage_change and state.item() == 1 and not final_flag:
+            print(f"stage_change2: {state}")
+            gripper_state = 1 - gripper_state
+            gripper_pose = obs.gripper_pose
+            final_flag = True
         else:
             # hist_update
             # 获得运动物体和参考物体的pose
@@ -246,7 +260,6 @@ def start(task, args, cfg, tz, bert):
                 hist_obs[:, 1:],
                 torch.from_numpy(relative_pose).unsqueeze(0).to(device)
             ], dim=1).float()
-
 
         front_rgb = Image.fromarray(obs.front_rgb)
         path = os.path.join(args.save_path, task.get_name(), 'front_rgb')

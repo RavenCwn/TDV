@@ -193,8 +193,8 @@ def start(task, args, cfg, tz, bert):
     rot_type = cfg.rot_type
 
 
-    state = torch.tensor([1]).to(device).long()
-    with open(f"task_stage/{task.get_name()}.txt", "r") as f:
+    state = torch.tensor([0]).to(device).long()
+    with open(f"examples/task_stages/{task.get_name()}.txt", "r") as f:
         task_stage = f.readlines()
         task_stage = [x.strip().split(' ') for x in task_stage]
     print("task_stage: ", task_stage)

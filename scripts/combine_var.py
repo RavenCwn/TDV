@@ -12,6 +12,7 @@ from rlbench.action_modes.gripper_action_modes import Discrete
 from rlbench.tasks import ReachAndDrag
 from rlbench.tasks import CloseJar
 
+current_dir = os.path.dirname(os.path.abspath(__file__)) + '/../'
 
 joint_positions_list = []
 joint_velocities_list = []
@@ -128,16 +129,16 @@ if __name__ == "__main__":
                     ...
     '''
 
-    task_dir = sorted(glob("all_data/*"))
-    output_dir = "combine_var_data"
+    # task_dir = sorted(glob("all_data/*"))
+    # output_dir = "combine_var_data"
 
-    task_dir = ["all_data/close_jar"]
-    task_dir = ["all_data/reach_and_drag"]
-    task_dir = ["all_data/insert_onto_square_peg"]
-    task_dir = ["all_data/meat_off_grill"]
-    task_dir = ["all_data/stack_wine"]
-    task_dir = ["all_data/put_groceries_in_cupboard"]
-    task_dir = ["all_data/put_money_in_safe"]
+    # task_dir = ["all_data/close_jar"]
+    # task_dir = ["all_data/reach_and_drag"]
+    # task_dir = ["all_data/insert_onto_square_peg"]
+    # task_dir = ["all_data/meat_off_grill"]
+    # task_dir = ["all_data/stack_wine"]
+    # task_dir = ["all_data/put_groceries_in_cupboard"]
+    # task_dir = ["all_data/put_money_in_safe"]
 
 
     # # 以下四个task可能有点问题
@@ -164,21 +165,30 @@ if __name__ == "__main__":
         'front_depth'
     ]
 
+    num_epi_each_task = 100
+    mode = "train"
 
-    num_epi_each_task = 125
+    # num_epi_each_task = 25
+    # mode = "val"
 
+    task_dir = sorted(glob("all_data/*"))
+    output_dir = f"combine_var_data/{mode}"
+    print(task_dir)
     for task in task_dir:
         task_name = task.split('/')[-1]
         origin_path = task
         variations = ns.natsorted(os.listdir(origin_path))
         num_var = len(variations)
         
+        # num_epi_of_var = int(np.ceil(num_epi_each_task / num_var))
         num_epi_of_var = num_epi_each_task // num_var
-        rest = num_epi_each_task % num_var
-        var_ids = [i for i in range(num_var)]
+        rest = num_epi_each_task - num_epi_of_var * num_var
+        var_ids = [num_epi_of_var for _ in range(num_var)]
         var_ids[-1] += rest
 
+        print(var_ids)
 
+        total_idx = 0
         for v, var in enumerate(variations):
             var_path = os.path.join(task, var)
             var_descriptions = os.path.join(var_path, 'variation_descriptions.pkl')
@@ -191,17 +201,26 @@ if __name__ == "__main__":
             episode_paths = ns.natsorted(glob(var_path + '/episodes/*'))
 
             for i, f in enumerate(episode_paths[:var_ids[v]]):
-                print(f"process [task:{task_name}]-[var:{var}]: {i}/{num_epi_of_var}")
+                print(f"process [task:{task_name}]-[{var}]: {i}/{num_epi_of_var}")
 
                 folder_path = f
 
                 low_dim_file_path = os.path.join(folder_path, 'low_dim_obs.pkl')
-                out_episode_path = os.path.join(output_path, f'episode_{i:04d}')
+                out_episode_path = os.path.join(output_path, f'episode_{total_idx:04d}')
+                out_episode_img_path = os.path.join(output_path, f'episode_{total_idx:04d}/images')
+                if os.path.exists(out_episode_path):
+                    total_idx+=1
+                    continue
+                check_and_make(out_episode_path)
+                check_and_make(out_episode_img_path)
+                total_idx+=1
 
                 for name in image_list:
                     origin_img_path = os.path.join(folder_path, name)
-                    output_img_path = os.path.join(out_episode_path, name)
-                    os.symlink(origin_img_path, output_img_path)
+                    output_img_path = os.path.join(out_episode_img_path, name)
+                    # print("origin_img_path: ", os.path.join(current_dir, origin_img_path))
+                    # print("output_img_path: ", output_img_path)
+                    os.symlink(os.path.join(current_dir, origin_img_path), output_img_path, target_is_directory=True)
 
                 path = os.path.join(out_episode_path, 'language')
                 check_and_make(path)
@@ -224,12 +243,13 @@ if __name__ == "__main__":
                     gripper_joint_positions_list.extend([obs.gripper_joint_positions])
                     gripper_touch_forces_list.extend([obs.gripper_touch_forces])
 
-                    for obj_name in obs.objs_pose.keys():  # 逐步按7个数据一组处理
+                    for obj_name in obs.task_objects.keys():  # 逐步按7个数据一组处理
                         if obj_name not in save_list:  # Check if obj_name is not in save_list
                             save_list[obj_name] = []  # Initialize an empty list for obj_name
-                        save_list[obj_name].append(obs.objs_pose[obj_name])
-                
+                        save_list[obj_name].append(obs.task_objects[obj_name])
+                        assert len(save_list[obj_name]) == len(gripper_open_with_force_list)
+
                 save_data(out_episode_path)
             
                         
-                print('success process task: ', task_name)
+        print('success process task: ', task_name)

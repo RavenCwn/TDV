@@ -48,6 +48,7 @@ def main(cfg: DictConfig):
                                 mode="val",
                                 num_workers=cfg.num_workers,
                                 batch_size=cfg.batch_size)
+        
 
     # for i, data in enumerate(train_loader):
     #     print(i)
@@ -82,8 +83,10 @@ def main(cfg: DictConfig):
         wandb.run.summary["gripper_total_parameters"] = total_params
         wandb.run.summary["gripper_trainable_parameters"] = trainable_params
 
-
-
+    if cfg.resume_path is not None:
+        arm_model.load_state_dict(torch.load(cfg.resume_path + '/arm_model_best.ckpt'))
+        gripper_model.load_state_dict(torch.load(cfg.resume_path + '/gripper_model_best.ckpt'))
+        print("Successfully resume from: ", cfg.resume_path)
 
     DDIM = DDIMScheduler(**cfg.ddim_cfg)
     arm_optimizer = setup_optimizer(cfg.optimizer_cfg, arm_model)

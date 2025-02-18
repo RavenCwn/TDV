@@ -4,7 +4,7 @@ import shutil
 import os.path as osp
 from glob import glob
 
-recollection_dir = "./recollect_data"
+recollection_dir = "./recollect_traj_data"
 
 if __name__ == '__main__':
 
@@ -16,12 +16,12 @@ if __name__ == '__main__':
         task_dir = osp.join(recollection_dir, task)
         episodes_list = glob(osp.join(task_dir, "*"))
         num_len = len(episodes_list)
-        random.shuffle(episodes_list)
+        # random.shuffle(episodes_list)
         os.makedirs(osp.join(task_dir, "train"), exist_ok=True)
-        os.makedirs(osp.join(task_dir, "val"), exist_ok=True)
+        # os.makedirs(osp.join(task_dir, "val"), exist_ok=True)
 
         train_episodes = episodes_list[:split_ratio]
-        val_episodes = episodes_list[split_ratio:]
+        # val_episodes = episodes_list[split_ratio:]
 
         # 移动训练集文件
         for episode in train_episodes:

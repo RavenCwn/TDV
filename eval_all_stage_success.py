@@ -111,7 +111,7 @@ def start(task, args, cfg, tz, bert, num_episodes):
     rlbench_env.launch()
 
     task_env = rlbench_env.get_task(task)
-    task_env.set_variation(args.variations)
+    task_env.set_variation(0)
 
     success_rate = 0
 
@@ -122,14 +122,14 @@ def start(task, args, cfg, tz, bert, num_episodes):
         DDIM.alphas_cumprod.to(device)
     )
 
-    with open(f"task_stage/{task_env._task.get_name()}.txt", "r") as f:
+    with open(f"examples/task_stages/{task_env._task.get_name()}/stages.txt", "r") as f:
         task_stage = f.readlines()
         task_stage = [x.strip().split(' ') for x in task_stage]
     print("task_stage: ", task_stage)
 
     for epid in range(num_episodes):
         task_description, obs = task_env.reset()
-        
+        print("task_description: ", task_description)
 
         task = task_env._task
         scene = task_env._scene
@@ -215,8 +215,6 @@ def start(task, args, cfg, tz, bert, num_episodes):
                 gripper_state = 1 - gripper_state
                 gripper_pose = obs.gripper_pose
                 action = np.concatenate([gripper_pose, gripper_state])
-                obs, reward, done = task_env.step(action)
-                obs, reward, done = task_env.step(action)
                 obs, reward, done = task_env.step(action)
                 if done:
                     break

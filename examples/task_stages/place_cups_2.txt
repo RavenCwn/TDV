@@ -1,0 +1,3 @@
+mug0 place_cups_holder_spoke0
+mug1 place_cups_holder_spoke1
+mug2 place_cups_holder_spoke2

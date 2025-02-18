@@ -84,6 +84,11 @@ gripper_model_cfg:
     drop_rate: 0.1
     num_layers: 4
     nhead: 2
+  language_enc_cfg:
+    network_name: MLPEncoder
+    input_dim: 768
+    hidden_dim: 128
+    num_layers: 1
 
 arm_model_name: CoorDiff
 arm_model_cfg:
@@ -108,10 +113,10 @@ arm_model_cfg:
     proj_drop: 0.1
     depth: 4
   language_enc_cfg:
-    input_dim: 784
+    network_name: MLPEncoder
+    input_dim: 768
     hidden_dim: 128
-    num_layers: 2
-  
+    num_layers: 1
   
 dataset_cfg:
   act_chunk: ${act_trunk}

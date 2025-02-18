@@ -12,3 +12,8 @@ save/
 __pycache__/
 */__pycache__/
 *.egg-info/
+
+combine_var_data/
+recollect_traj_data/
+rlbench_data.zip
+test_data/

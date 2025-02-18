@@ -41,13 +41,28 @@ def is_valid_rotation_matrix(R):
     )
     return abs(det - 1.0) < epsilon
 
+def normalize_quaternion(q):
+    """
+    归一化四元数
+    :param q: 四元数，格式为 [qx, qy, qz, qw] 或 np.array
+    :return: 归一化后的四元数
+    """
+    q = np.asarray(q)
+    norm = np.linalg.norm(q)
+    if norm < 1e-10:  # 处理零四元数（无效情况）
+        return np.array([0.0, 0.0, 0.0, 1.0])  # 返回默认单位四元数
+    return q / norm
+
 def quaternion_to_rotation_matrix(q):
     """
     将四元数转换为旋转矩阵
     q = [qx, qy, qz, qw]
     """
+    q = normalize_quaternion(q)
     qx, qy, qz, qw = q
-    assert is_valid_quaternion(q), "Invalid quaternion: norm(q) != 1"
+
+    # assert is_valid_quaternion(q), "Invalid quaternion: norm(q) != 1"
+
 
     R = np.array([
         [1 - 2*qy**2 - 2*qz**2,     2*qx*qy - 2*qz*qw,     2*qx*qz + 2*qy*qw],
@@ -62,7 +77,7 @@ def rotation_matrix_to_quaternion(R):
     将旋转矩阵转换为四元数
     返回格式: q = [qx, qy, qz, qw]
     """
-    assert is_valid_rotation_matrix(R), "transfrom: Invalid rotation matrix"
+    # assert is_valid_rotation_matrix(R), "transfrom: Invalid rotation matrix"
     tr = np.trace(R)
     
     if tr > 0:
@@ -90,7 +105,8 @@ def rotation_matrix_to_quaternion(R):
         qy = (R[1,2] + R[2,1]) / S
         qz = 0.25 * S
     
-    return np.array([qx, qy, qz, qw])
+    q = np.array([qx, qy, qz, qw])
+    return normalize_quaternion(q)
 
 def rotation_matrix_to_rpy(R):
     """
@@ -236,6 +252,9 @@ def get_abs_pose(name, obs, task):
         # obj = Object.get_object(name)
         # pose = obj.get_pose()
     assert pose is not None, f"Can't find the object [{name}] pose in task [{task.name}]"
+
+    if np.isnan(pose).any():
+        import ipdb; ipdb.set_trace()
 
     return pose
 
