@@ -126,7 +126,7 @@ def save_stages(gripper_open_with_force, task_related_obj_list, traj_path, outpu
 
     if state == 0 or state >= 2:
         print("state: ", state)
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
 def complex_task(episode_path, output_path, task_name):
 
@@ -263,7 +263,7 @@ def different_task(episode_path, output_path, task_name):
 
     if state == 0 or state >= 4:
         print("state: ", state)
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
 if __name__ == '__main__':
     '''
@@ -278,7 +278,7 @@ if __name__ == '__main__':
                     gripper_change.npy
     '''
     mode = "val"
-    # mode = "train"
+    mode = "train"
 
     root_dir = f"./combine_var_data/{mode}"
     recollection_dir = f"./recollect_traj_data/{mode}"

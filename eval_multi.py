@@ -99,7 +99,72 @@ def init_bert():
     return tz, model
 
 
+def run_waypoint(waypoint, task_env):
+    waypoint.start_of_path()
+    if waypoint.skip:
+        return
+    path = waypoint.get_path()
 
+    ext = waypoint.get_ext()
+    path.visualize()
+
+    done = False
+    success = False
+    gripper_open = 1
+    while not done:
+        done = path.step()
+        task_env._scene.step()
+        # task_env._scene._joint_position_action = np.append(path.get_executed_joint_position_action(), gripper_open)
+        success, term = task_env._task.success()
+        obs = task_env._scene.get_observation()
+
+        if success:
+            break
+
+
+    if len(ext) > 0:
+        contains_param = False
+        start_of_bracket = -1
+        gripper = task_env._scene.robot.gripper
+        if 'open_gripper(' in ext:
+            gripper.release()
+            start_of_bracket = ext.index('open_gripper(') + 13
+            contains_param = ext[start_of_bracket] != ')'
+            if not contains_param:
+                done = False
+                while not done:
+                    gripper_open = 1.0
+                    done = gripper.actuate(gripper_open, 0.04)
+                    task_env._scene.step()
+                    task_env._scene._joint_position_action = np.append(path.get_executed_joint_position_action(), gripper_open)
+
+        elif 'close_gripper(' in ext:
+            start_of_bracket = ext.index('close_gripper(') + 14
+            contains_param = ext[start_of_bracket] != ')'
+            if not contains_param:
+                done = False
+                while not done:
+                    gripper_open = 0.0
+                    done = gripper.actuate(gripper_open, 0.04)
+                    task_env._scene.step()
+                    task_env._scene._joint_position_action = np.append(path.get_executed_joint_position_action(), gripper_open)
+
+        if contains_param:
+            rest = ext[start_of_bracket:]
+            num = float(rest[:rest.index(')')])
+            done = False
+            while not done:
+                gripper_open = num
+                done = gripper.actuate(gripper_open, 0.04)
+                task_env._scene.step()
+                task_env._scene._joint_position_action = np.append(path.get_executed_joint_position_action(), gripper_open)
+
+        if 'close_gripper(' in ext:
+            for g_obj in task_env._scene.task.get_graspable_objects():
+                gripper.grasp(g_obj)
+
+    waypoint.end_of_path()
+    path.clear_visualization()
 
 
 def start(task, args, cfg, tz, bert):
@@ -112,78 +177,14 @@ def start(task, args, cfg, tz, bert):
     rlbench_env.launch()
 
     task_env = rlbench_env.get_task(task)
-    # task_env.set_variation(args.variations)
+    task_env.set_variation(args.variations)
     task_description, obs = task_env.reset()
     print(f"task_description: {task_description}")
     
     
     waypoints = task_env._task.get_waypoints()
     for i, point in enumerate(waypoints[:2]):
-        point.start_of_path()
-        if point.skip:
-            continue
-        path = point.get_path()
-
-        ext = point.get_ext()
-        path.visualize()
-
-        done = False
-        success = False
-        gripper_open = 1
-        while not done:
-            done = path.step()
-            task_env._scene.step()
-            # task_env._scene._joint_position_action = np.append(path.get_executed_joint_position_action(), gripper_open)
-            success, term = task_env._task.success()
-            obs = task_env._scene.get_observation()
-
-            if success:
-                break
-
-
-        if len(ext) > 0:
-            contains_param = False
-            start_of_bracket = -1
-            gripper = task_env._scene.robot.gripper
-            if 'open_gripper(' in ext:
-                gripper.release()
-                start_of_bracket = ext.index('open_gripper(') + 13
-                contains_param = ext[start_of_bracket] != ')'
-                if not contains_param:
-                    done = False
-                    while not done:
-                        gripper_open = 1.0
-                        done = gripper.actuate(gripper_open, 0.04)
-                        task_env._scene.step()
-                        task_env._scene._joint_position_action = np.append(path.get_executed_joint_position_action(), gripper_open)
-
-            elif 'close_gripper(' in ext:
-                start_of_bracket = ext.index('close_gripper(') + 14
-                contains_param = ext[start_of_bracket] != ')'
-                if not contains_param:
-                    done = False
-                    while not done:
-                        gripper_open = 0.0
-                        done = gripper.actuate(gripper_open, 0.04)
-                        task_env._scene.step()
-                        task_env._scene._joint_position_action = np.append(path.get_executed_joint_position_action(), gripper_open)
-
-            if contains_param:
-                rest = ext[start_of_bracket:]
-                num = float(rest[:rest.index(')')])
-                done = False
-                while not done:
-                    gripper_open = num
-                    done = gripper.actuate(gripper_open, 0.04)
-                    task_env._scene.step()
-                    task_env._scene._joint_position_action = np.append(path.get_executed_joint_position_action(), gripper_open)
-
-            if 'close_gripper(' in ext:
-                for g_obj in task_env._scene.task.get_graspable_objects():
-                    gripper.grasp(g_obj)
-
-        point.end_of_path()
-        path.clear_visualization()
+       run_waypoint(point, task_env)
 
     task = task_env._task
     scene = task_env._scene
@@ -212,7 +213,7 @@ def start(task, args, cfg, tz, bert):
     done = False
     T_o_g = None
     move_pose = get_abs_pose('gripper_pose', obs, task)
-    ref_pose = get_abs_pose('jar_lid0', obs, task)
+    ref_pose = get_abs_pose(task_stage[0][0], obs, task)
     T_o_g = compute_relative_pose_T(move_pose, ref_pose,)
 
 
@@ -239,6 +240,7 @@ def start(task, args, cfg, tz, bert):
     hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
     task_emb = get_task_embs(cfg, task_description[0], tz, bert).to(device).float()
     gripper_state = np.array([0])
+    stage_change = torch.zeros(1).to(device).long()
 
     for i in tqdm(range(200)):
 
@@ -263,6 +265,9 @@ def start(task, args, cfg, tz, bert):
         if smooth_idx == -1:
             # gripper_pose = get_abs_action(arm[5], ref_pose, rot_type, T_o_g)
             gripper_pose = obs.gripper_pose
+            gripper_pose[2] -= 0.0001
+            stage_change = torch.zeros(1).to(device).long()
+            print("init")
         else:
             arm = noicy_action.detach().cpu().numpy().squeeze()
             all_time_actions[smooth_idx][smooth_idx:smooth_idx+act_trunk] = arm
@@ -279,9 +284,10 @@ def start(task, args, cfg, tz, bert):
         action = np.concatenate([gripper_pose, gripper_state])
         obs, reward, done = task_env.step(action)
 
-        # if stage_change:
-        #     state += 1
-        #     print(f"stage_change: {state}")
+        if stage_change:
+            state += 1
+            print(f"stage_change: {state}")
+            break
         #     # gripper_state = 1 - gripper_state
 
         #     if move_obj_name == 'gripper_pose':
@@ -329,7 +335,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="RLBench Dataset Generator")
     parser.add_argument('--save_path', '-s', type=str, default='./save', help='Where to save the demos.')
     parser.add_argument('--ckpt_dir', '-c', type=str, help='checkpoint dir.')
-    parser.add_argument('--tasks', nargs='*', default=['close_jar'], help='The tasks to collect. If empty, all tasks are collected.')
+    parser.add_argument('--tasks', nargs='*', default=['insert_onto_square_peg'], help='The tasks to collect. If empty, all tasks are collected.')
     parser.add_argument('--image_size', nargs=2, type=int, default=[128, 128], help='The size of the images to save.')
     parser.add_argument('--variations', type=int, default=1, help='Number of variations to collect per task. -1 for all.')
     return parser.parse_args()
