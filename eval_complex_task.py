@@ -211,8 +211,12 @@ def start(task, args, cfg, tz, bert):
             obs, reward, done = task_env.step(action)
             
             if state < num_stages:
-                run_waypoint(waypoints[-1], task_env)
-                obs = task_env.get_observation()
+                # run_waypoint(waypoints[-1], task_env)
+                # obs = task_env.get_observation()
+                gripper_pose = obs.gripper_pose
+                gripper_pose[2] += 0.04
+                action = np.concatenate([gripper_pose, gripper_state])
+                obs, reward, done = task_env.step(action)
                 # input()
                 print("last step")
                 task_env._task.should_repeat_waypoints()
@@ -292,11 +296,10 @@ def main():
                 raise ValueError('Task %s not recognised!.' % t)
         task_files = args.tasks
 
-    task_files = ["stack_blocks"]
+    task_files = ["stack_cups"]
     complex_task_list = [
         "place_cups",
         "stack_blocks",
-        "stack_cups",
     ]
     tasks = [task_file_to_task_class(t) for t in task_files]
 

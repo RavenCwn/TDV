@@ -1,6 +1,7 @@
 import numpy as np
 import argparse
 import os
+import os.path as osp
 from PIL import Image
 
 from rlbench.action_modes.action_mode import MoveArmThenGripper
@@ -11,81 +12,41 @@ from rlbench.observation_config import ObservationConfig
 from rlbench.backend.utils import task_file_to_task_class
 
 import rlbench.backend.task as task
-import hydra
 import torch
-from easydict import EasyDict
-from transformers import AutoTokenizer, AutoModel
-from pyrep.objects import Object
 from coordiff.utils.transform import *
 from coordiff.models import *
 from hydra import initialize, compose
 from diffusers.schedulers.scheduling_ddim import DDIMScheduler
 from tqdm import tqdm
-import time
 import shutil
 from eval_utils import *
 
-colors = [
-    ('red', (1.0, 0.0, 0.0)),
-    ('maroon', (0.5, 0.0, 0.0)),
-    ('lime', (0.0, 1.0, 0.0)),
-    ('green', (0.0, 0.5, 0.0)),
-    ('blue', (0.0, 0.0, 1.0)),
-    ('navy', (0.0, 0.0, 0.5)),
-    ('yellow', (1.0, 1.0, 0.0)),
-    ('cyan', (0.0, 1.0, 1.0)),
-    ('magenta', (1.0, 0.0, 1.0)),
-    ('silver', (0.75, 0.75, 0.75)),
-    ('gray', (0.5, 0.5, 0.5)),
-    ('orange', (1.0, 0.5, 0.0)),
-    ('olive', (0.5, 0.5, 0.0)),
-    ('purple', (0.5, 0.0, 0.5)),
-    ('teal', (0, 0.5, 0.5)),
-    ('azure', (0.0, 0.5, 1.0)),
-    ('violet', (0.5, 0.0, 1.0)),
-    ('rose', (1.0, 0.0, 0.5)),
-    ('black', (0.0, 0.0, 0.0)),
-    ('white', (1.0, 1.0, 1.0)),
-]
+complex_obj_list = {
+    "place_cups": [
+        "place 1 cup on the cup holder",
+        "place 2 cups on the cup holder",
+        "place 3 cups on the cup holder",
+    ],
+    "stack_blocks": [
+        'stack %d %s blocks' % (2, "red"),
+        'stack %d %s blocks' % (3, "red"),
+        'stack %d %s blocks' % (4, "red"),
+        'stack %d %s blocks' % (2, "maroon"),
+        'stack %d %s blocks' % (3, "maroon"),
+        'stack %d %s blocks' % (4, "maroon")
+    ],
+}
 
-
-def get_color_name(rgb):
-    """
-    根据输入的RGB浮点值找到最接近的颜色名称。
-    
-    参数:
-        rgb (tuple): 包含三个浮点数的元组，表示RGB颜色值，范围为[0.0, 1.0]。
-    
-    返回:
-        str: 最接近的颜色名称。
-    """
-    min_distance = float('inf')  # 初始化最小距离为无穷大
-    closest_color = None  # 初始化最接近的颜色名称为空
-
-    for color_name, color_rgb in colors:
-        # 计算输入RGB与当前颜色的欧几里得距离
-        distance = np.sqrt((rgb[0] - color_rgb[0]) ** 2 +
-                            (rgb[1] - color_rgb[1]) ** 2 +
-                            (rgb[2] - color_rgb[2]) ** 2)
-        
-        # 如果当前距离小于最小距离，更新最小距离和最接近的颜色名称
-        if distance < min_distance:
-            min_distance = distance
-            closest_color = color_name
-
-    return closest_color
-
-
-def start(rlbench_env, task_class, args, cfg, tz, bert, task_str=None):
+def start(rlbench_env, task_class, args, cfg, tz, bert):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     success = 0
     test_iters = 25
     iters = 0
     test_type = "random"  # dataset
     success = 0
+    max_timesteps = 200
     task_env = rlbench_env.get_task(task_class)
     task_name = task_env._task.get_name()
-    max_timesteps = 200
     
     print("[Task]: ", task_name)
     # 添加日志文件
@@ -101,12 +62,7 @@ def start(rlbench_env, task_class, args, cfg, tz, bert, task_str=None):
             f.write(iters_log + '\n')
 
         if test_type == "dataset":
-            variation = iters % variation_count
-            demo = task_env.get_demos(
-                amount=1,
-                from_episode_number=iters,
-                random_selection=False
-            )
+            demo = self.get_demo(task_str, variation, episode_index=iters)[0]
             task_description, obs = task_env.reset_to_demo(demo)
         elif test_type == "random":
             variation_count = task_env._task.variation_count()
@@ -120,9 +76,24 @@ def start(rlbench_env, task_class, args, cfg, tz, bert, task_str=None):
         task_description = task_description[0]
             
         waypoints = task_env._task.get_waypoints()
-        for i, point in enumerate(waypoints[:2]):
+
+        waypoint_idx = 0
+        for i, point in enumerate(waypoints[waypoint_idx:waypoint_idx+3]):
             run_waypoint(point, task_env)
             obs = task_env.get_observation()
+        waypoint_idx += 5
+
+        # while True:
+        #     success = False
+        #     for i, point in enumerate(waypoints):
+        #         print(i)
+        #         run_waypoint(point, task_env)
+        #         obs = task_env.get_observation()
+        #         input()
+        #         success, term = task_env._task.success()
+
+        #     if not task_env._task.should_repeat_waypoints() or success:
+        #         break
 
         task = task_env._task
         scene = task_env._scene
@@ -131,53 +102,16 @@ def start(rlbench_env, task_class, args, cfg, tz, bert, task_str=None):
         hist_len = cfg.hist_len
         rot_type = cfg.rot_type
 
-        # 初始化任务阶段
-        with open(f"examples/task_stages/{task_name}.txt", "r") as f:
-            task_stage = f.readlines()
-            task_stage = [x.strip().split(' ') for x in task_stage]
-        print("task_stage: ", task_stage)
+     
+        task_stages_path = osp.join("examples/task_stages", f'{task_name}.txt')
+        with open(task_stages_path, 'r') as f:
+            task_related_obj_list = f.readlines()
+            task_related_obj_list = [obj.strip().split() for obj in task_related_obj_list]
+        num_stages = len(task_related_obj_list)
 
         state = torch.tensor([0]).to(device).long()
-        task_related_obj_list = task_stage[state.item()]
-        if task_related_obj_list[2] != "None":
-            target_color = None
-            for color in colors:
-                if color[0] in task_description:
-                    target_color = color[0]
-                    break
-            assert target_color is not None, f"Select color error. {task_description}, {color[0]}"
-
-            idx = 0 if task_related_obj_list[2] == 'move_obj' else 1
-            target_name = task_related_obj_list[idx]
-            for obj, _ in task._initial_objs_in_scene:
-                obj_name = obj.get_name()
-                if hasattr(obj, "get_color"):
-                    color = obj.get_color()
-                    obj_color = get_color_name(color)
-                    if (target_name in obj_name) and (obj_color == target_color):
-                        task_related_obj_list[idx] = obj_name
-
-
-        if "light_bulb_in" == task_name:
-            target_bulb_holder = get_abs_pose(task_related_obj_list[idx], obs, task)
-            bulb0 = get_abs_pose("bulb0", obs, task)
-            bulb1 = get_abs_pose("bulb1", obs, task)
-            if np.linalg.norm(bulb0[:3] - target_bulb_holder[:3]) < np.linalg.norm(bulb1[:3] - target_bulb_holder[:3]):
-                task_related_obj_list[idx] = "bulb0"
-            else:
-                task_related_obj_list[idx] = "bulb1"
-
-        elif "put_money_in_safe" == task_name:
-            if "top" in task_description:
-                task_related_obj_list[1] = "dummy_shelf2"
-            elif "middle" in task_description:
-                task_related_obj_list[1] = "dummy_shelf1"
-            elif "bottom" in task_description:
-                task_related_obj_list[1] = "dummy_shelf0"
-
-        move_obj_name, ref_obj_name, _ = task_related_obj_list
+        move_obj_name, ref_obj_name = task_related_obj_list[state.item()]
         print("task_related_obj_list: ", task_related_obj_list)
-
 
         # 初始化抓取相对位置
         T_o_g = None
@@ -257,16 +191,52 @@ def start(rlbench_env, task_class, args, cfg, tz, bert, task_str=None):
                 action = np.concatenate([gripper_pose, gripper_state])
                 obs, reward, done = task_env.step(action)
 
-                if i > max_timesteps-20 and gripper_state == 0:
-                    gripper_state = 1 - gripper_state
 
-                # if stage_change:
-                #     state += 1
-                #     print(f"stage_change: {state}")
-                #     break
-                    # gripper_state = 1 - gripper_state
+                if state < num_stages and stage_change:
+                    state += 1
+                    print(f"stage_change: {state}")
+                    
+                    gripper_state = np.array([1])
+                    gripper_pose = obs.gripper_pose
+                    gripper_pose[2] -= 0.0001
+                    action = np.concatenate([gripper_pose, gripper_state])
+                    obs, reward, done = task_env.step(action)
+                    
+                    if state < num_stages:
+                        # run_waypoint(waypoints[-1], task_env)
+                        # obs = task_env.get_observation()
+                        # input()
+                        # print("last step")
+                        # task_env._task.should_repeat_waypoints()
+                        for i, point in enumerate(waypoints[waypoint_idx:waypoint_idx+3]):
+                            run_waypoint(point, task_env)
+                            obs = task_env.get_observation()
+                        waypoint_idx += 5
 
+                        move_obj_name, ref_obj_name = task_related_obj_list[state.item()]
+                        move_pose = get_abs_pose('gripper_pose', obs, task)
+                        ref_pose = get_pose_for_task(obs, task_name, task_description, move_obj_name, task)
+                        T_o_g = compute_relative_pose_T(move_pose, ref_pose,)
+                        gripper_state = np.array([0])
+
+                        move_obj_name, ref_obj_name = task_related_obj_list[state.item()]
+                        move_pose = get_abs_pose(move_obj_name, obs, task)
+                        ref_pose = get_abs_pose(ref_obj_name, obs, task)
+                        relative_pose = compute_relative_pose_input(move_pose, ref_pose, rot_type)
+
+                        all_time_actions = np.zeros([max_timesteps, max_timesteps+act_trunk, input_dim])
+                        smooth_idx = -1
+
+                    # hist_obs = [torch.from_numpy(relative_pose) for _ in range(hist_len)]
+                    # hist_obs = torch.stack(hist_obs, dim=0).unsqueeze(0).to(device).float()
+                    hist_obs = torch.zeros([hist_len, input_dim]).unsqueeze(0).to(device).float()
+                    hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
+                elif stage_change:
+                    gripper_state = np.array([1])
+
+                
                 # hist_update
+                # 获得运动物体和参考物体的pose
                 move_pose = get_pose_for_task(obs, task_name, task_description, move_obj_name, task)
                 ref_pose = get_abs_pose(ref_obj_name, obs, task)
                 relative_pose = compute_relative_pose_input(move_pose, ref_pose, rot_type).reshape(1, -1)
@@ -330,15 +300,7 @@ def main():
                 raise ValueError('Task %s not recognised!.' % t)
         task_files = args.tasks
 
-    task_files = [
-        "close_jar",
-        "insert_onto_square_peg",
-        "light_bulb_in",
-        "put_money_in_safe",
-        "reach_and_drag",
-        "stack_wine",
-    ]
-
+    task_files = ["stack_cups"]
     tasks = [task_file_to_task_class(t) for t in task_files]
 
     tz, bert = init_bert()

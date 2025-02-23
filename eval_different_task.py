@@ -47,13 +47,13 @@ def start(task, args, cfg, tz, bert):
     rlbench_env.launch()
 
     task_env = rlbench_env.get_task(task)
-    task_env.set_variation(4)
+    task_env.set_variation(3)
     task_description, obs = task_env.reset()
     print(f"task_description: {task_description}")
     task_description = task_description[0]
     
     waypoints = task_env._task.get_waypoints()
-    for i, point in enumerate(waypoints[:2]):
+    for i, point in enumerate(waypoints[:3]):
         run_waypoint(point, task_env)
         obs = task_env.get_observation()
 
@@ -87,10 +87,10 @@ def start(task, args, cfg, tz, bert):
     assert moving_obj != 'object', f"Occupant error. {task_description}, {different_obj_list[task_name]}"
 
     if task_name == "place_shape_in_shape_sorter":
-        task_related_obj_list[0] = moving_obj + '_grasp_point'
+        # task_related_obj_list[0] = moving_obj + '_grasp_point'
         task_related_obj_list[1] = moving_obj + '_drop_point'
-    elif task_name == "put_groceries_in_cupboard":
-        task_related_obj_list[0] = moving_obj + '_grasp_point'
+    # elif task_name == "put_groceries_in_cupboard":
+    #     task_related_obj_list[0] = moving_obj + '_grasp_point'
 
     move_obj_name, ref_obj_name = task_related_obj_list
     print("task_related_obj_list: ", task_related_obj_list)
@@ -266,12 +266,12 @@ def main():
                 raise ValueError('Task %s not recognised!.' % t)
         task_files = args.tasks
 
-    # task_files = ["place_shape_in_shape_sorter"]
-    task_files = [
-        "meat_off_grill",
-        "place_shape_in_shape_sorter",
-        "put_groceries_in_cupboard",
-    ]
+    task_files = ["place_shape_in_shape_sorter"]
+    # task_files = [
+    #     "meat_off_grill",
+    #     "place_shape_in_shape_sorter",
+    #     "put_groceries_in_cupboard",
+    # ]
 
     tasks = [task_file_to_task_class(t) for t in task_files]
 

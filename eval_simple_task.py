@@ -86,15 +86,28 @@ def start(task, args, cfg, tz, bert):
     rlbench_env.launch()
 
     task_env = rlbench_env.get_task(task)
-    task_env.set_variation(1)
+    task_env.set_variation(0)
     task_description, obs = task_env.reset()
     print(f"task_description: {task_description}")
     task_description = task_description[0]
     
     waypoints = task_env._task.get_waypoints()
+    
     for i, point in enumerate(waypoints[:2]):
         run_waypoint(point, task_env)
         obs = task_env.get_observation()
+
+    # while True:
+    #     success = False
+    #     for i, point in enumerate(waypoints):
+    #         print(i)
+    #         run_waypoint(point, task_env)
+    #         obs = task_env.get_observation()
+    #         input()
+    #         success, term = task_env._task.success()
+
+    #     if not task_env._task.should_repeat_waypoints() or success:
+    #         break
 
     task = task_env._task
     scene = task_env._scene
@@ -318,7 +331,7 @@ def main():
                 raise ValueError('Task %s not recognised!.' % t)
         task_files = args.tasks
 
-    task_files = ["insert_onto_square_peg"]
+    task_files = ["light_bulb_in"]
     # simple_task_list = [
     #     "close_jar",
     #     "insert_onto_square_peg",

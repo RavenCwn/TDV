@@ -38,6 +38,6 @@ if __name__ == "__main__":
                     f" use_language=true"
                     f" batch_size=10240"
                     # f" +resume_path='/home/a4090/lfwh/CoorDiff/results/coordiff/close_jar_wo_language/02-20_10-12-20'"
-                    
+                    f" +resume_path='results/coordiff/all_lunch2/02-22_20-32-59'"
                     )
         os.system(commond)

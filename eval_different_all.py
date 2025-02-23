@@ -37,40 +37,40 @@ different_obj_list = {
     "place_shape_in_shape_sorter": ['cube', 'cylinder', 'triangular prism', 'star', 'moon'],
 }
 
-def start(task_name, args, cfg, tz, bert):
-    print("[Task]: ", task_name)
-    # 添加日志文件
-    log_dir = "logs"
-    os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, f"{task_name}_results.log")
-    
+def start(rlbench_env, task_class, args, cfg, tz, bert):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    rlbench_env = Environment(
-        action_mode=MoveArmThenGripper(EndEffectorPoseViaPlanning(), Discrete()),
-        obs_config=ObservationConfig(),
-        headless=True)
-    rlbench_env.launch()
-
     success = 0
     test_iters = 25
     iters = 0
     test_type = "random"  # dataset
     success = 0
+    task_env = rlbench_env.get_task(task_class)
+    task_name = task_env._task.get_name()
+    max_timesteps = 270
+    
+    print("[Task]: ", task_name)
+    # 添加日志文件
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, f"{task_name}_results.log")
 
+
+    variation_count = task_env._task.variation_count()
     while iters < test_iters:
         iters_log = f"[iters]: {iters}, success rate: {success}/{iters}"
         print(iters_log)
         with open(log_file, 'a') as f:
             f.write(iters_log + '\n')
-        task_env = rlbench_env.get_task(task_name)
 
         if test_type == "dataset":
             pass
             # demo = self.get_demo(task_str, variation, episode_index=iters)[0]
             # task_description, obs = task/_env.reset_to_demo(demo)
         elif test_type == "random":
-            variation_count = task_env._task.variation_count()
             variation = np.random.randint(0, variation_count)
+            if task_name == "put_groceries_in_cupboard":
+                while variation == 4:  # ignore tuna
+                    variation = np.random.randint(0, variation_count)
             task_env.set_variation(variation)
             task_description, obs = task_env.reset()
         else:
@@ -80,7 +80,8 @@ def start(task_name, args, cfg, tz, bert):
         task_description = task_description[0]
             
         waypoints = task_env._task.get_waypoints()
-        for i, point in enumerate(waypoints[:2]):
+        waypoint_idx = 2 if task_name == "put_groceries_in_cupboard" else 3
+        for i, point in enumerate(waypoints[:waypoint_idx]):
             run_waypoint(point, task_env)
             obs = task_env.get_observation()
 
@@ -88,7 +89,6 @@ def start(task_name, args, cfg, tz, bert):
         scene = task_env._scene
         robot = task_env._robot
         random_seed = np.random.get_state()
-        task_name = task.get_name()
         hist_len = cfg.hist_len
         rot_type = cfg.rot_type
 
@@ -132,7 +132,6 @@ def start(task_name, args, cfg, tz, bert):
         DDIM.set_timesteps(cfg.eval_timesteps)
         DDIM.alphas_cumprod = (DDIM.alphas_cumprod.to(device))
 
-        max_timesteps = 200
         act_trunk = arm_model.act_trunk
         input_dim = arm_model.input_dim
         all_time_actions = np.zeros([max_timesteps, max_timesteps+act_trunk, input_dim])
@@ -153,10 +152,13 @@ def start(task_name, args, cfg, tz, bert):
         stage_change = torch.zeros(1).to(device).long()
 
 
+
+
         try:
             done = False
             smooth_idx = -1
             for i in tqdm(range(max_timesteps)):
+
                 encode_cache = arm_model.forward_enc(hist_obs, task_emb, state)
 
                 noicy_action = torch.randn((1, act_trunk, input_dim)).to(device)
@@ -194,8 +196,7 @@ def start(task_name, args, cfg, tz, bert):
                 action = np.concatenate([gripper_pose, gripper_state])
                 obs, reward, done = task_env.step(action)
 
-                if i > 180 and gripper_state == 0:
-                    print(f"release: {state}")
+                if i > max_timesteps-20 and gripper_state == 0:
                     gripper_state = 1 - gripper_state
 
                 # if gripper_state == 0 and stage_change:
@@ -218,7 +219,7 @@ def start(task_name, args, cfg, tz, bert):
                 if done:
                     print("Episode success!")
                     break
-        
+
             iters += 1  # 正常完成
             if done:
                 success += 1  # 成功
@@ -234,8 +235,7 @@ def start(task_name, args, cfg, tz, bert):
         except Exception as e:
             error_msg = f"Error in episode {iters}: {str(e)}"
             print(error_msg)
-            with open(log_file, 'a') as f:
-                f.write(error_msg + '\n')
+            pass
         finally:
             final_msg = f"task_description: {task_description}"
             print(final_msg)
@@ -247,7 +247,6 @@ def start(task_name, args, cfg, tz, bert):
     with open(log_file, 'a') as f:
         f.write("\n" + final_result + "\n")
         f.write("-" * 50 + "\n")
-    rlbench_env.shutdown()
 
 
 def parse_args():
@@ -288,11 +287,16 @@ def main():
 
     cfg.arm_model_path = os.path.join(args.ckpt_dir, 'arm_model_best.ckpt')
     cfg.gripper_model_path = os.path.join(args.ckpt_dir, 'gripper_model_best.ckpt')
-
+    rlbench_env = Environment(
+        action_mode=MoveArmThenGripper(EndEffectorPoseViaPlanning(), Discrete()),
+        obs_config=ObservationConfig(),
+        headless=True)
+    rlbench_env.launch()
     for t in tasks:
-        start(t, args, cfg, tz, bert)
+        start(rlbench_env, t, args, cfg, tz, bert)
 
     print('Finish')
+    rlbench_env.shutdown()
 
 
 if __name__ == '__main__':

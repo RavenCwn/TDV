@@ -38,6 +38,7 @@ if __name__ == "__main__":
                     f" use_language=True"
                     f" batch_size=1024"
                     f" num_states=5"
+                    f" +resume_path='results/coordiff/all_lunch2/02-22_20-32-59'"
                     # f" +resume_path='results/coordiff/all_data_fix/02-22_16-45-47'"
                     )
         os.system(commond)
