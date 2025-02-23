@@ -1,1 +1,1 @@
-stick target0
+stick target0 ref_obj

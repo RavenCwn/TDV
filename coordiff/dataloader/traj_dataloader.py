@@ -41,11 +41,10 @@ class TrajDataset(Dataset):
         self.act_chunk = act_chunk
         self.hist_len = hist_len
         
-        # print(self.task_list)
         episode_states = []
         for task in self.task_list:
             task_path = osp.join(dataset_dir, task)
-            # print(task_path)
+            print(task_path)
 
             # 同样的任务具有同样的states
             episodes = sorted(glob(osp.join(task_path, "*")))

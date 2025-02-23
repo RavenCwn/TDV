@@ -17,3 +17,6 @@ combine_var_data/
 recollect_traj_data/
 rlbench_data.zip
 test_data/
+data
+logs*
+video_save

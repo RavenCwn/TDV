@@ -1,0 +1,124 @@
+defaults:
+  - _self_
+
+task_name: close_jar
+num_of_demos: 10
+experiment: ${task_name}_demo${num_of_demos} # tag for wandb and log dir
+
+hydra:
+  run:
+    dir: ./results/coordiff/${experiment}_${now:%m%d}_${now:%H%M}
+  sweep:
+    dir: ./results/coordiff/${experiment}_${now:%m%d}_${now:%H%M}
+    subdir: ${hydra.job.num}
+
+wandb:
+  project: lfwh
+  name: ${experiment}_${now:%m%d}_${now:%H%M}_${hydra:job.num}
+  group: ${experiment}
+  mode: online
+
+train_gpus: [0]
+
+# Training
+lr: 5e-4
+batch_size: 128
+mix_precision: false
+num_workers: 8
+val_freq: 5
+save_freq: 100
+clip_grad: 100.
+epochs: 1001
+seed: 0
+dry: true # dry run
+
+train_dataset: ???
+val_dataset: ???
+arm_model_path: null
+gripper_model_path: null
+
+
+hist_len: 15
+rot_type: '6d'
+hidden_dim: 64
+act_trunk: 10
+use_language: False
+num_states: 2
+eval_timesteps: 8
+
+ddim_cfg:
+  num_train_timesteps: 100
+  beta_start: 0.0001
+  beta_end: 0.02
+  beta_schedule: "squaredcos_cap_v2"
+  clip_sample: True
+  set_alpha_to_one: True
+  steps_offset: 0
+  prediction_type: "epsilon"
+
+optimizer_cfg:
+  type: optim.AdamW
+  params:
+    lr: ${lr}
+    weight_decay: 1e-4
+
+scheduler_cfg:
+  type: CosineAnnealingLR
+  params:
+    T_max: ${epochs}
+    eta_min: 0.
+    last_epoch: -1
+
+gripper_model_name: StateJudger
+gripper_model_cfg:
+  hist_len: ${hist_len}
+  rot_type: ${rot_type}
+  hidden_dim: ${hidden_dim}
+  use_language: ${use_language}
+  num_states: ${num_states}
+  drop_rate: 0.1
+
+  mix_encoder_cfg:
+    hidden_dim: 64
+    mlp_hidden_dim: 256  # 64 * 4
+    drop_rate: 0.1
+    num_layers: 4
+    nhead: 2
+
+  language_enc_cfg:
+    input_dim: 768
+    hidden_dim: 128
+    num_layers: 1
+
+arm_model_name: CoorDiff
+arm_model_cfg:
+  hist_len: ${hist_len}
+  rot_type: ${rot_type}
+  hidden_dim: ${hidden_dim}
+  act_trunk: ${act_trunk}
+  use_language: ${use_language}
+  num_states: ${num_states}
+
+  mix_encoder_cfg:
+    hidden_dim: 64
+    mlp_hidden_dim: 256  # 64 * 4
+    drop_rate: 0.1
+    num_layers: 4
+    nhead: 2
+  dit_cfg:
+    hidden_dim: 64
+    num_heads: 2
+    mlp_ratio: 4
+    attn_drop: 0.1
+    proj_drop: 0.1
+    depth: 4
+  language_enc_cfg:
+    input_dim: 768
+    hidden_dim: 128
+    num_layers: 1
+  
+  
+dataset_cfg:
+  act_chunk: ${act_trunk}
+  hist_len: ${hist_len}
+  rot_type: ${rot_type}

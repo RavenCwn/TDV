@@ -9,8 +9,30 @@ import random
 import shutil
 import torch
 import pytorch3d.transforms as pt3d
-from coordiff.utils.transfrom import *
+from coordiff.utils.transform import *
 
+colors = [
+    'red',
+    'maroon',
+    'lime',
+    'green',
+    'blue',
+    'navy',
+    'yellow',
+    'cyan',
+    'magenta',
+    'silver',
+    'gray',
+    'orange',
+    'olive',
+    'purple',
+    'teal',
+    'azure',
+    'violet',
+    'rose',
+    'black',
+    'white',
+]
 
 def init_bert():
     tz = AutoTokenizer.from_pretrained(
@@ -59,7 +81,7 @@ complex_obj_list = {
         "turn left tap",
         "turn right tap"
     ],
-
+    "stack_cups": []
 }
 
 def save_when_close(traj_path, moving_obj, reference_obj, start_idx, end_idx, re_state_path, task_description, tz, model):
@@ -81,6 +103,8 @@ def save_when_close(traj_path, moving_obj, reference_obj, start_idx, end_idx, re
     gripper_change = np.zeros(relevant_traj.shape[0])
     gripper_change[-1] = 1
     np.save(osp.join(re_state_path, 'gripper_change.npy'), gripper_change)
+    with open(osp.join(re_state_path, 'task_related_objs.txt'), 'w') as f:
+        f.write(f"{moving_obj} {reference_obj}")
 
 
 
@@ -102,7 +126,7 @@ def save_stages(gripper_open_with_force, task_related_obj_list, traj_path, outpu
 
         elif gripper_state == 1 and last_gripper_state == 0:
             print(f"Release obj end recording: {step}")
-            moving_obj, reference_obj = task_related_obj_list[:2]
+            moving_obj, reference_obj = task_related_obj_list[state][:2]
             
             end_idx = step
             if end_idx - start_idx > 10:
@@ -117,16 +141,20 @@ def save_stages(gripper_open_with_force, task_related_obj_list, traj_path, outpu
 
     if re_state_path is not None:
         print(f"Release obj end recording: {step}")
-        moving_obj, reference_obj = task_related_obj_list[:2]
+        if state == len(task_related_obj_list):
+            print("state: ", state)
+            import ipdb; ipdb.set_trace()
+            return
+        moving_obj, reference_obj = task_related_obj_list[state][:2]
 
         end_idx = step
         if end_idx - start_idx > 10:
             save_when_close(traj_path, moving_obj, reference_obj, start_idx, end_idx, re_state_path, task_description, tz, model)
             state += 1
 
-    if state == 0 or state >= 2:
+    if state == 0 or state >= 4:
         print("state: ", state)
-        # import ipdb; ipdb.set_trace()
+        import ipdb; ipdb.set_trace()
 
 def complex_task(episode_path, output_path, task_name):
 
@@ -144,9 +172,25 @@ def complex_task(episode_path, output_path, task_name):
         if task_desc == task_description:
             id = i % 3
             break
-
-    with open(osp.join("examples/task_stages", f'{task_name}_{id}.txt'), 'r') as f:
-        task_related_obj_list = f.read().strip().split()
+    
+    task_stages_path = None
+    if task_name == "stack_cups":
+        task_stages_path = osp.join("examples/task_stages", f'{task_name}.txt')
+        with open(task_stages_path, 'r') as f:
+            task_related_obj_list = f.readlines()
+            task_related_obj_list = [obj.strip().split() for obj in task_related_obj_list]
+        color_obj_list = os.listdir(osp.join(traj_path, f"task_shape"))
+        for obj in color_obj_list:
+            for task_related_obj in task_related_obj_list:
+                if task_related_obj[0] == obj.split('-')[0]:
+                    task_related_obj[0] = obj.removesuffix(".txt")
+                if task_related_obj[1] == obj.split('-')[0]:
+                    task_related_obj[1] = obj.removesuffix(".txt")
+    else:
+        task_stages_path = osp.join("examples/task_stages", f'{task_name}_{id}.txt')
+        with open(task_stages_path, 'r') as f:
+            task_related_obj_list = f.readlines()
+            task_related_obj_list = [obj.strip().split() for obj in task_related_obj_list]
 
     save_stages(gripper_open_with_force, task_related_obj_list, traj_path, output_path, task_description, tz, model)
    
@@ -166,8 +210,53 @@ def simple_task(episode_path, output_path, task_name):
 
 
     with open(osp.join("examples/task_stages", f'{task_name}.txt'), 'r') as f:
-        task_related_obj_list = f.read().strip().split()
+        task_related_obj_list = f.readlines()
+        task_related_obj_list = [obj.strip().split() for obj in task_related_obj_list]
 
+    if task_related_obj_list[0][2] != "None":
+        target_color = None
+        for color in colors:
+            if color in task_description:
+                target_color = color
+                break
+        assert target_color is not None, f"Select color error. {task_description}, {color}"
+
+        idx = 0 if task_related_obj_list[0][2] == 'move_obj' else 1
+        target_name = task_related_obj_list[0][idx]
+        color_obj_list = os.listdir(osp.join(traj_path, f"task_shape"))
+        for obj in color_obj_list:
+            if (target_color in obj) and (target_name in obj):
+                task_related_obj_list[0][idx] = obj.removesuffix(".txt")
+                target_color = 'None'
+                target_name = 'None'
+            elif task_related_obj_list[0][1-idx] == obj.split('-')[0]:
+                task_related_obj_list[0][1-idx] = obj.removesuffix(".txt")
+                
+        assert task_related_obj_list[0][idx] is not None, f"Select obj error. {task_description}, {os.listdir(osp.join(traj_path, f'task_shape'))}"
+
+    if "light_bulb_in" in episode_path:
+        target_bulb_holder = np.loadtxt(osp.join(traj_path, f"task_shape/{task_related_obj_list[0][idx]}.txt"), delimiter=' ')[0][:3]
+        for obj in color_obj_list:
+            if "bulb0" in obj:
+                bulb0 = (np.loadtxt(osp.join(traj_path, f"task_shape/{obj}"), delimiter=' ')[0][:3], obj.removesuffix(".txt"))
+            elif "bulb1" in obj:
+                bulb1 = (np.loadtxt(osp.join(traj_path, f"task_shape/{obj}"), delimiter=' ')[0][:3], obj.removesuffix(".txt"))
+        if np.linalg.norm(bulb0[0] - target_bulb_holder) < np.linalg.norm(bulb1[0] - target_bulb_holder):
+            task_related_obj_list[0][idx] = bulb0[1]
+        else:
+            task_related_obj_list[0][idx] = bulb1[1]
+
+    if "put_money_in_safe" in episode_path:
+        if "top" in task_description:
+            task_related_obj_list[0][1] = "dummy_shelf2"
+        elif "middle" in task_description:
+            task_related_obj_list[0][1] = "dummy_shelf1"
+        elif "bottom" in task_description:
+            task_related_obj_list[0][1] = "dummy_shelf0"
+
+        assert "dummy_shelf" in task_related_obj_list[0][1], f"Select obj error. {task_description}, {os.listdir(osp.join(traj_path, f'task_shape'))}"
+
+    print(task_related_obj_list)
     save_stages(gripper_open_with_force, task_related_obj_list, traj_path, output_path, task_description, tz, model)
    
    
@@ -231,6 +320,13 @@ def different_task(episode_path, output_path, task_name):
                     break
 
             moving_obj = moving_obj.replace(' ', '_')
+            if task_name == "place_shape_in_shape_sorter":
+                temp = moving_obj
+                # moving_obj = temp + '_grasp_point'
+                reference_obj = temp + '_drop_point'
+            # elif task_name == "put_groceries_in_cupboard":
+            #     moving_obj += '_grasp_point'
+
             assert moving_obj != 'object', f"Occupant error. {task_description}, {different_obj_list[task_name]}"
 
             end_idx = step
@@ -263,7 +359,7 @@ def different_task(episode_path, output_path, task_name):
 
     if state == 0 or state >= 4:
         print("state: ", state)
-        # import ipdb; ipdb.set_trace()
+        import ipdb; ipdb.set_trace()
 
 if __name__ == '__main__':
     '''
@@ -280,8 +376,8 @@ if __name__ == '__main__':
     mode = "val"
     mode = "train"
 
-    root_dir = f"./combine_var_data/{mode}"
-    recollection_dir = f"./recollect_traj_data/{mode}"
+    root_dir = f"data/color_combine_var_data/{mode}"
+    recollection_dir = f"data/color3_recollect_traj_data/{mode}"
     task_name = sorted(os.listdir(root_dir))
     print(task_name)
 
@@ -302,8 +398,7 @@ if __name__ == '__main__':
         "put_money_in_safe",
         "reach_and_drag",
         "stack_wine",
-        "stack_cups",
-        "turn_tap"
+        # "turn_tap"
     ]
 
     different_obj_task_list = [
@@ -315,6 +410,7 @@ if __name__ == '__main__':
     complex_task_list = [
         "place_cups",
         "stack_blocks",
+        "stack_cups",
     ]
 
     ''' task level '''

@@ -1,1 +1,1 @@
-jar_lid0 jar0
+jar_lid0 jar ref_obj

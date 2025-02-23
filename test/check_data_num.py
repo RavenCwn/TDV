@@ -20,7 +20,7 @@ task_dirs = {
     'all_data/stack_blocks': 21,
     'all_data/stack_cups': 7,
     'all_data/stack_wine': 125,
-    'all_data/turn_tap': 75
+    # 'all_data/turn_tap': 75
 }
 
 keys = list(task_dirs.keys())

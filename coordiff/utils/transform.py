@@ -77,7 +77,54 @@ def rotation_matrix_to_quaternion(R):
     将旋转矩阵转换为四元数
     返回格式: q = [qx, qy, qz, qw]
     """
-    # assert is_valid_rotation_matrix(R), "transfrom: Invalid rotation matrix"
+    # 处理批量输入
+    if R.ndim == 3:  # 检查是否为批量输入
+        assert R.shape[1:] == (3, 3), "Input must be of shape (N, 3, 3)"
+        
+        tr = np.trace(R, axis1=1, axis2=2)  # 计算每个旋转矩阵的迹
+        qw = np.zeros(R.shape[0])
+        qx = np.zeros(R.shape[0])
+        qy = np.zeros(R.shape[0])
+        qz = np.zeros(R.shape[0])
+        
+        # 计算 S
+        S = np.sqrt(np.maximum(tr + 1.0, 0)) * 2
+        
+        # 条件判断
+        mask = tr > 0
+        qw[mask] = 0.25 * S[mask]
+        qx[mask] = (R[mask, 2, 1] - R[mask, 1, 2]) / S[mask]
+        qy[mask] = (R[mask, 0, 2] - R[mask, 2, 0]) / S[mask]
+        qz[mask] = (R[mask, 1, 0] - R[mask, 0, 1]) / S[mask]
+
+        mask1 = ~mask & (R[:, 0, 0] > R[:, 1, 1]) & (R[:, 0, 0] > R[:, 2, 2])
+        S1 = np.sqrt(1.0 + R[mask1, 0, 0] - R[mask1, 1, 1] - R[mask1, 2, 2]) * 2
+        qw[mask1] = (R[mask1, 2, 1] - R[mask1, 1, 2]) / S1
+        qx[mask1] = 0.25 * S1
+        qy[mask1] = (R[mask1, 0, 1] + R[mask1, 1, 0]) / S1
+        qz[mask1] = (R[mask1, 0, 2] + R[mask1, 2, 0]) / S1
+
+        mask2 = ~mask & (R[:, 1, 1] > R[:, 2, 2])
+        S2 = np.sqrt(1.0 + R[mask2, 1, 1] - R[mask2, 0, 0] - R[mask2, 2, 2]) * 2
+        qw[mask2] = (R[mask2, 0, 2] - R[mask2, 2, 0]) / S2
+        qx[mask2] = (R[mask2, 0, 1] + R[mask2, 1, 0]) / S2
+        qy[mask2] = 0.25 * S2
+        qz[mask2] = (R[mask2, 1, 2] + R[mask2, 2, 1]) / S2
+
+        mask3 = ~mask & ~mask1 & ~mask2
+        S3 = np.sqrt(1.0 + R[mask3, 2, 2] - R[mask3, 0, 0] - R[mask3, 1, 1]) * 2
+        qw[mask3] = (R[mask3, 1, 0] - R[mask3, 0, 1]) / S3
+        qx[mask3] = (R[mask3, 0, 2] + R[mask3, 2, 0]) / S3
+        qy[mask3] = (R[mask3, 1, 2] + R[mask3, 2, 1]) / S3
+        qz[mask3] = 0.25 * S3
+
+        q = np.array([qx, qy, qz, qw]).T
+        return normalize_quaternion(q)
+
+    else:
+        return rotation_matrix_to_quaternion_single(R)  # 处理单个旋转矩阵
+
+def rotation_matrix_to_quaternion_single(R):
     tr = np.trace(R)
     
     if tr > 0:
@@ -107,6 +154,7 @@ def rotation_matrix_to_quaternion(R):
     
     q = np.array([qx, qy, qz, qw])
     return normalize_quaternion(q)
+
 
 def rotation_matrix_to_rpy(R):
     """
@@ -178,7 +226,7 @@ def compute_relative_pose_T(move_obj, ref_obj):
     return T_r_m
 
 
-def compute_relative_pose_input(move_obj, ref_obj, rot_type='6d'):
+def compute_relative_pose_input(move_obj, ref_obj, rot_type):
    
     T_r_m = compute_relative_pose_T(move_obj, ref_obj)
 

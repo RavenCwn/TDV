@@ -1,2 +1,2 @@
 stack_blocks_target0 stack_blocks_target_plane
-stack_blocks_target1 stack_blocks_target_plane
+stack_blocks_target1 stack_blocks_target0

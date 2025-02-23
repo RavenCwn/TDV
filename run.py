@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     for task in task_list:
         for seed in range(1):
-            commond = (f'python -m coordiff.engine.train2 --config-name={CONFIG_NAME}'
+            commond = (f'python -m coordiff.engine.train_only --config-name={CONFIG_NAME}'
                         f' train_dataset="{root_dir}" val_dataset="{root_dir}"'
                         f' seed={seed}'
                         f' +task_list={task_list}'

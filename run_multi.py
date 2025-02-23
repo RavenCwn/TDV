@@ -17,7 +17,7 @@ if __name__ == "__main__":
     CONFIG_NAME = args.config_name
     task_list = os.listdir(os.path.join(args.root_dir, 'train'))
     # print(task_list)
-    # task_list = ['close_jar', 'insert_onto_square_peg']
+    # task_list = ['pour_water', ]
 
     work_dir = "./results/coordiff"
 
@@ -29,14 +29,15 @@ if __name__ == "__main__":
     os.makedirs(work_dir)
 
     for seed in range(1):
-        commond = (f'python -m coordiff.engine.train2 --config-name={CONFIG_NAME}'
+        commond = (f'python -m coordiff.engine.train_only --config-name={CONFIG_NAME}'
                     f' train_dataset="{root_dir}" val_dataset="{root_dir}"'
                     f' seed={seed}'
                     # f' +task_list={task_list}'
                     f' +task_list=[{",".join(task_list)}]'
                     f" +work_dir={work_dir}"
                     f" use_language=True"
-                    f" batch_size=10240"
-                    f" +resume_path='results/coordiff/all_data/02-18_18-24-10'"
+                    f" batch_size=1024"
+                    f" num_states=5"
+                    # f" +resume_path='results/coordiff/all_data_fix/02-22_16-45-47'"
                     )
         os.system(commond)

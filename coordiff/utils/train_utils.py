@@ -1,23 +1,22 @@
-import wandb
+import swanlab
 import numpy as np
 import random
 from omegaconf import DictConfig, OmegaConf
 
 
-def init_wandb(cfg):
+def init_swanlab(cfg):
     cfg = OmegaConf.to_container(cfg, resolve=True)
     cfg = OmegaConf.create(cfg)
     pretty_print_cfg(cfg)
-    wandb_cfg = prepare_wandb_cfg(cfg)
+    swanlab_cfg = prepare_swanlab_cfg(cfg)
 
-    wandb.init(
-        config=wandb_cfg,
-        project=cfg.wandb.project,
-        name=cfg.wandb.name,
-        group=cfg.wandb.group,
-        mode=cfg.wandb.mode,
+    swanlab.init(
+        config=swanlab_cfg,
+        project=cfg.swanlab.project,
+        name=cfg.swanlab.name,
+        mode=cfg.swanlab.mode,
     )
-    OmegaConf.save(cfg, f"{wandb.run.dir}/config.yaml")
+    OmegaConf.save(cfg, f"{cfg.swanlab.dir}/config.yaml")
 
 def pretty_print_cfg(cfg):
     """
@@ -33,15 +32,15 @@ def pretty_print_cfg(cfg):
             print(f"  - {value}")
 
 
-def prepare_wandb_cfg(cfg):
-    wandb_cfg = {}
+def prepare_swanlab_cfg(cfg):
+    swanlab_cfg = {}
     for key, value in cfg.items():
         if isinstance(value, DictConfig):
-            wandb_cfg[key] = prepare_wandb_cfg(value)
+            swanlab_cfg[key] = prepare_swanlab_cfg(value)
         else:
-            wandb_cfg[key] = value
+            swanlab_cfg[key] = value
 
-    return wandb_cfg
+    return swanlab_cfg
 
 
 def set_random_seed(seed):

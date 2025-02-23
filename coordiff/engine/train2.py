@@ -4,14 +4,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import os
-import wandb
+import swanlab
 from tqdm import tqdm
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
 from coordiff.dataloader import TrajDataset, get_dataloader
 from coordiff.models import *
-from coordiff.utils.train_utils import setup_optimizer, setup_lr_scheduler, init_wandb
+from coordiff.utils.train_utils import setup_optimizer, setup_lr_scheduler, init_swanlab
 from coordiff.utils.log_utils import MetricLogger, BestAvgLoss
 from diffusers.schedulers.scheduling_ddim import DDIMScheduler
 
@@ -56,7 +56,7 @@ def main(cfg: DictConfig):
     #     print(hist.shape, action.shape, task_emb.shape, state.shape, gripper_change.shape)
 
     if not cfg.dry:
-        init_wandb(cfg)
+        init_swanlab(cfg)
 
     model_cls = eval(cfg.arm_model_name)
     arm_model = model_cls(**cfg.arm_model_cfg, device=device).to(device)
@@ -67,9 +67,10 @@ def main(cfg: DictConfig):
     print(f"模型总参数量: {total_params:,}")
     print(f"可训练参数量: {trainable_params:,}")
     if not cfg.dry:
-        wandb.run.summary["arm_total_parameters"] = total_params
-        wandb.run.summary["arm_trainable_parameters"] = trainable_params
-
+        # swanlab.summary["arm_total_parameters"] = total_params
+        # swanlab.summary["arm_trainable_parameters"] = trainable_params
+        swanlab.log({"arm_total_parameters": total_params})
+        swanlab.log({"arm_trainable_parameters": trainable_params})
 
 
     model_cls = eval(cfg.gripper_model_name)
@@ -80,10 +81,12 @@ def main(cfg: DictConfig):
     print(f"模型总参数量: {total_params:,}")
     print(f"可训练参数量: {trainable_params:,}")
     if not cfg.dry:
-        wandb.run.summary["gripper_total_parameters"] = total_params
-        wandb.run.summary["gripper_trainable_parameters"] = trainable_params
+        # swanlab.summary["gripper_total_parameters"] = total_params
+        # swanlab.summary["gripper_trainable_parameters"] = trainable_params
+        swanlab.log({"gripper_total_parameters": total_params})
+        swanlab.log({"gripper_trainable_parameters": trainable_params})
 
-    if cfg.resume_path is not None:
+    if hasattr(cfg, "resume_path"):
         arm_model.load_state_dict(torch.load(cfg.resume_path + '/arm_model_best.ckpt'))
         gripper_model.load_state_dict(torch.load(cfg.resume_path + '/gripper_model_best.ckpt'))
         print("Successfully resume from: ", cfg.resume_path)
@@ -116,7 +119,7 @@ def main(cfg: DictConfig):
         metric_logger.update(**train_metrics)
 
         if not cfg.dry:
-            wandb.log(train_metrics, step=epoch)
+            swanlab.log(train_metrics, step=epoch)
 
         if epoch % cfg.val_freq == 0:
             val_metrics = evaluate(
@@ -142,7 +145,7 @@ def main(cfg: DictConfig):
                         % (epoch, "loss", best_loss_logger.best_loss)
                     )
             if not cfg.dry:
-                wandb.log(val_metrics, step=epoch)
+                swanlab.log(val_metrics, step=epoch)
 
         if epoch % cfg.save_freq == 0:
             torch.save(arm_model.state_dict(), f"{work_dir}/arm_model_{epoch}.ckpt")
@@ -152,9 +155,7 @@ def main(cfg: DictConfig):
 
     torch.save(arm_model.state_dict(), f"{work_dir}/arm_model_final.ckpt")
     torch.save(arm_model.state_dict(), f"{work_dir}/gripper_model_final.ckpt")
-    if not cfg.dry:
-        print(f"finished training in {wandb.run.dir}")
-        wandb.finish()
+
 
 
 def run_one_epoch(model,

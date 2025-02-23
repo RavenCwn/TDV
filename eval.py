@@ -329,7 +329,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="RLBench Dataset Generator")
     parser.add_argument('--save_path', '-s', type=str, default='./save', help='Where to save the demos.')
     parser.add_argument('--ckpt_dir', '-c', type=str, help='checkpoint dir.')
-    parser.add_argument('--tasks', nargs='*', default=['close_jar'], help='The tasks to collect. If empty, all tasks are collected.')
+    parser.add_argument('--tasks', nargs='*', default=['insert_onto_square_peg'], help='The tasks to collect. If empty, all tasks are collected.')
     parser.add_argument('--image_size', nargs=2, type=int, default=[128, 128], help='The size of the images to save.')
     parser.add_argument('--variations', type=int, default=1, help='Number of variations to collect per task. -1 for all.')
     return parser.parse_args()

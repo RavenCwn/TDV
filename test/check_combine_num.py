@@ -1,11 +1,11 @@
 import os
 from tqdm import tqdm
 
-root_dir = "./combine_var_data/val"
+root_dir = "./color_combine_var_data/train"
 task_name = sorted(os.listdir(root_dir))
 print(task_name)
 
-num_epi_each_task = 25
+num_epi_each_task = 100
 
 
 for t in tqdm(task_name):

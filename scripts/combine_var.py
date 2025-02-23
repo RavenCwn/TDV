@@ -165,14 +165,14 @@ if __name__ == "__main__":
         'front_depth'
     ]
 
-    num_epi_each_task = 100
-    mode = "train"
+    # num_epi_each_task = 100
+    # mode = "train"
+    
+    num_epi_each_task = 25
+    mode = "val"
 
-    # num_epi_each_task = 25
-    # mode = "val"
-
-    task_dir = sorted(glob("all_data/*"))
-    output_dir = f"combine_var_data/{mode}"
+    task_dir = sorted(glob("color_data/*"))
+    output_dir = f"color_combine_var_data/{mode}"
     print(task_dir)
     for task in task_dir:
         task_name = task.split('/')[-1]
@@ -228,12 +228,11 @@ if __name__ == "__main__":
                     for line in descriptions_list:
                         f.write(line + "\n") 
 
-                state = 0
 
                 with open(low_dim_file_path, 'rb') as pkl_file:
                     demo = pickle.load(pkl_file)
 
-                for obs in demo:    
+                for obs in demo:
                     joint_positions_list.extend([obs.joint_positions])
                     joint_velocities_list.extend([obs.joint_velocities])
                     joint_forces_list.extend([obs.joint_forces])

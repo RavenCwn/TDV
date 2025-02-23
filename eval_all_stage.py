@@ -16,7 +16,7 @@ import torch
 from easydict import EasyDict
 from transformers import AutoTokenizer, AutoModel
 from pyrep.objects import Object
-from coordiff.utils.transfrom import *
+from coordiff.utils.transform import *
 from coordiff.models import *
 from hydra import initialize, compose
 from diffusers.schedulers.scheduling_ddim import DDIMScheduler

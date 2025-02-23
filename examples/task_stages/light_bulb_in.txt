@@ -1,1 +1,1 @@
-bulb0 lamp_screw
+bulb_holder lamp_screw move_obj

@@ -3,7 +3,7 @@ defaults:
 
 task_name: close_jar
 num_of_demos: 10
-experiment: ${task_name}_demo${num_of_demos} # tag for wandb and log dir
+experiment: ${task_name}_demo${num_of_demos} # tag for swanlab and log dir
 
 hydra:
   run:
@@ -12,11 +12,12 @@ hydra:
     dir: ./results/coordiff/${experiment}_${now:%m%d}_${now:%H%M}
     subdir: ${hydra.job.num}
 
-wandb:
+swanlab:
   project: coordiff
   name: ${experiment}_${now:%m%d}_${now:%H%M}_${hydra:job.num}
   group: ${experiment}
-  mode: online
+  mode: cloud
+  dir: ${hydra:run.dir}
 
 train_gpus: [0]
 
@@ -40,7 +41,7 @@ gripper_model_path: null
 
 hist_len: 15
 rot_type: '6d'
-hidden_dim: 128
+hidden_dim: 64
 act_trunk: 10
 use_language: False
 num_states: 2
@@ -73,35 +74,6 @@ scheduler_cfg:
     last_epoch: -1
 
 
-arm_model_name: CoorDiff
-arm_model_cfg:
-  hist_len: ${hist_len}
-  rot_type: ${rot_type}
-  hidden_dim: ${hidden_dim}
-  act_trunk: ${act_trunk}
-  use_language: ${use_language}
-  num_states: ${num_states}
-
-  mix_encoder_cfg:
-    hidden_dim: ${hidden_dim}
-    mlp_hidden_dim: 256  # 64 * 4
-    drop_rate: 0.1
-    num_layers: 8
-    nhead: 4
-  dit_cfg:
-    hidden_dim: ${hidden_dim}
-    mlp_ratio: 4
-    attn_drop: 0.1
-    proj_drop: 0.1
-    depth: 8
-    num_heads: 4
-  language_enc_cfg:
-    network_name: MLPEncoder
-    input_dim: 768
-    hidden_dim: 128
-    num_layers: 2
-
-
 gripper_model_name: StateJudger
 gripper_model_cfg:
   hist_len: ${hist_len}
@@ -112,7 +84,7 @@ gripper_model_cfg:
   drop_rate: 0.1
 
   mix_encoder_cfg:
-    hidden_dim: ${hidden_dim}
+    hidden_dim: 64
     mlp_hidden_dim: 256  # 64 * 4
     drop_rate: 0.1
     num_layers: 4
@@ -121,7 +93,90 @@ gripper_model_cfg:
     network_name: MLPEncoder
     input_dim: 768
     hidden_dim: 128
-    num_layers: 2
+    num_layers: 1
+
+arm_model_name: CoorDiff
+arm_model_cfg:
+  hist_len: ${hist_len}
+  rot_type: ${rot_type}
+  hidden_dim: ${hidden_dim}
+  act_trunk: ${act_trunk}
+  use_language: ${use_language}
+  num_states: ${num_states}
+
+  mix_encoder_cfg:
+    hidden_dim: 64
+    mlp_hidden_dim: 256  # 64 * 4
+    drop_rate: 0.1
+    num_layers: 4
+    nhead: 2
+  dit_cfg:
+    hidden_dim: 64
+    num_heads: 2
+    mlp_ratio: 4
+    attn_drop: 0.1
+    proj_drop: 0.1
+    depth: 4
+  language_enc_cfg:
+    network_name: MLPEncoder
+    input_dim: 768
+    hidden_dim: 128
+    num_layers: 1
+
+
+# arm_model_name: CoorDiff
+# arm_model_cfg:
+#   hist_len: ${hist_len}
+#   rot_type: ${rot_type}
+#   hidden_dim: ${hidden_dim}
+#   act_trunk: ${act_trunk}
+#   use_language: ${use_language}
+#   num_states: ${num_states}
+
+#   mix_encoder_cfg:
+#     hidden_dim: ${hidden_dim}
+#     mlp_hidden_dim: 256  # 64 * 4
+#     drop_rate: 0.1
+#     # num_layers: 8
+#     # nhead: 4
+#     num_layers: 4
+#     nhead: 2
+#   dit_cfg:
+#     hidden_dim: ${hidden_dim}
+#     mlp_ratio: 4
+#     attn_drop: 0.1
+#     proj_drop: 0.1
+#     # depth: 8
+#     # num_heads: 4
+#     depth: 8
+#     num_heads: 4
+#   language_enc_cfg:
+#     network_name: MLPEncoder
+#     input_dim: 768
+#     hidden_dim: 128
+#     num_layers: 2
+
+
+# gripper_model_name: StateJudger
+# gripper_model_cfg:
+#   hist_len: ${hist_len}
+#   rot_type: ${rot_type}
+#   hidden_dim: ${hidden_dim}
+#   use_language: ${use_language}
+#   num_states: ${num_states}
+#   drop_rate: 0.1
+
+#   mix_encoder_cfg:
+#     hidden_dim: ${hidden_dim}
+#     mlp_hidden_dim: 256  # 64 * 4
+#     drop_rate: 0.1
+#     num_layers: 4
+#     nhead: 2
+#   language_enc_cfg:
+#     network_name: MLPEncoder
+#     input_dim: 768
+#     hidden_dim: 128
+#     num_layers: 2
 
 
 dataset_cfg:
