@@ -40,7 +40,7 @@ different_obj_list = {
 def start(rlbench_env, task_class, args, cfg, tz, bert):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     success = 0
-    test_iters = 25
+    test_iters = args.iters
     iters = 0
     test_type = "random"  # dataset
     success = 0
@@ -50,111 +50,112 @@ def start(rlbench_env, task_class, args, cfg, tz, bert):
     
     print("[Task]: ", task_name)
     # 添加日志文件
-    log_dir = "logs"
+    log_dir = args.log_dir
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, f"{task_name}_results.log")
 
 
     variation_count = task_env._task.variation_count()
     while iters < test_iters:
-        iters_log = f"[iters]: {iters}, success rate: {success}/{iters}"
-        print(iters_log)
-        with open(log_file, 'a') as f:
-            f.write(iters_log + '\n')
-
-        if test_type == "dataset":
-            pass
-            # demo = self.get_demo(task_str, variation, episode_index=iters)[0]
-            # task_description, obs = task/_env.reset_to_demo(demo)
-        elif test_type == "random":
-            variation = np.random.randint(0, variation_count)
-            if task_name == "put_groceries_in_cupboard":
-                while variation == 4:  # ignore tuna
-                    variation = np.random.randint(0, variation_count)
-            task_env.set_variation(variation)
-            task_description, obs = task_env.reset()
-        else:
-            raise NotImplementedError
-
-        print(f"task_description: {task_description}")
-        task_description = task_description[0]
-            
-        waypoints = task_env._task.get_waypoints()
-        waypoint_idx = 2 if task_name == "put_groceries_in_cupboard" else 3
-        for i, point in enumerate(waypoints[:waypoint_idx]):
-            run_waypoint(point, task_env)
-            obs = task_env.get_observation()
-
-        task = task_env._task
-        scene = task_env._scene
-        robot = task_env._robot
-        random_seed = np.random.get_state()
-        hist_len = cfg.hist_len
-        rot_type = cfg.rot_type
-
-        # 初始化任务阶段
-        with open(f"examples/task_stages/{task_name}.txt", "r") as f:
-            task_stage = f.readlines()
-            task_stage = [x.strip().split(' ') for x in task_stage]
-        print("task_stage: ", task_stage)
-
-        state = torch.tensor([0]).to(device).long()
-        task_related_obj_list = task_stage[state.item()]
-        moving_obj, reference_obj = task_related_obj_list[:2]
-
-        for obj in different_obj_list[task_name]:
-            if obj in task_description:
-                moving_obj = obj
-                break
-
-        moving_obj = moving_obj.replace(' ', '_')
-        if task_name == "place_shape_in_shape_sorter":
-            temp = moving_obj
-            # moving_obj = temp + '_grasp_point'
-            task_related_obj_list[1] = temp + '_drop_point'
-
-        assert moving_obj != 'object', f"Occupant error. {task_description}, {different_obj_list[task_name]}"
-        task_related_obj_list[0] = moving_obj
-        move_obj_name, ref_obj_name = task_related_obj_list
-        print("task_related_obj_list: ", task_related_obj_list)
-
-
-        # 初始化抓取相对位置
-        T_o_g = None
-        move_pose = get_abs_pose('gripper_pose', obs, task)
-        ref_pose = get_pose_for_task(obs, task_name, task_description, move_obj_name, task)
-        T_o_g = compute_relative_pose_T(move_pose, ref_pose,)
-
-
-        # 初始化模型
-        arm_model, gripper_model = load_policy(cfg, device)
-        DDIM = DDIMScheduler(**cfg.ddim_cfg)
-        DDIM.set_timesteps(cfg.eval_timesteps)
-        DDIM.alphas_cumprod = (DDIM.alphas_cumprod.to(device))
-
-        act_trunk = arm_model.act_trunk
-        input_dim = arm_model.input_dim
-        all_time_actions = np.zeros([max_timesteps, max_timesteps+act_trunk, input_dim])
-
-
-        # 初始化观测
-        # TODO 获得参考物体的pose 和 move obj pose
-        move_pose = get_pose_for_task(obs, task_name, task_description, move_obj_name, task)
-        ref_pose = get_abs_pose(ref_obj_name, obs, task)
-        relative_pose = compute_relative_pose_input(move_pose, ref_pose, rot_type)
-
-        # hist_obs = [torch.from_numpy(relative_pose) for _ in range(hist_len)]
-        # hist_obs = torch.stack(hist_obs, dim=0).unsqueeze(0).to(device).float()
-        hist_obs = torch.zeros([hist_len, input_dim]).unsqueeze(0).to(device).float()
-        hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
-        task_emb = get_task_embs(cfg, task_description, tz, bert).to(device).float()
-        gripper_state = np.array([0])
-        stage_change = torch.zeros(1).to(device).long()
-
-
-
-
         try:
+            iters_log = f"[iters]: {iters}, success rate: {success}/{iters}"
+            print(iters_log)
+            with open(log_file, 'a') as f:
+                f.write(iters_log + '\n')
+
+            if test_type == "dataset":
+                pass
+                # demo = self.get_demo(task_str, variation, episode_index=iters)[0]
+                # task_description, obs = task/_env.reset_to_demo(demo)
+            elif test_type == "random":
+                # variation = np.random.randint(0, variation_count)
+                variation = iters % variation_count
+                if task_name == "put_groceries_in_cupboard":
+                    while variation == 4:  # ignore tuna
+                        variation = np.random.randint(0, variation_count)
+                task_env.set_variation(variation)
+                task_description, obs = task_env.reset()
+            else:
+                raise NotImplementedError
+
+            print(f"task_description: {task_description}")
+            task_description = task_description[0]
+                
+            waypoints = task_env._task.get_waypoints()
+            waypoint_idx = 2 if task_name == "put_groceries_in_cupboard" else 3
+            for i, point in enumerate(waypoints[:waypoint_idx]):
+                run_waypoint(point, task_env)
+                obs = task_env.get_observation()
+
+            task = task_env._task
+            scene = task_env._scene
+            robot = task_env._robot
+            random_seed = np.random.get_state()
+            hist_len = cfg.hist_len
+            rot_type = cfg.rot_type
+
+            # 初始化任务阶段
+            with open(f"examples/task_stages/{task_name}.txt", "r") as f:
+                task_stage = f.readlines()
+                task_stage = [x.strip().split(' ') for x in task_stage]
+            print("task_stage: ", task_stage)
+
+            state = torch.tensor([0]).to(device).long()
+            task_related_obj_list = task_stage[state.item()]
+            moving_obj, reference_obj = task_related_obj_list[:2]
+
+            for obj in different_obj_list[task_name]:
+                if obj in task_description:
+                    moving_obj = obj
+                    break
+
+            moving_obj = moving_obj.replace(' ', '_')
+            if task_name == "place_shape_in_shape_sorter":
+                temp = moving_obj
+                # moving_obj = temp + '_grasp_point'
+                task_related_obj_list[1] = temp + '_drop_point'
+
+            assert moving_obj != 'object', f"Occupant error. {task_description}, {different_obj_list[task_name]}"
+            task_related_obj_list[0] = moving_obj
+            move_obj_name, ref_obj_name = task_related_obj_list
+            print("task_related_obj_list: ", task_related_obj_list)
+
+
+            # 初始化抓取相对位置
+            T_o_g = None
+            move_pose = get_abs_pose('gripper_pose', obs, task)
+            ref_pose = get_pose_for_task(obs, task_name, task_description, move_obj_name, task)
+            T_o_g = compute_relative_pose_T(move_pose, ref_pose,)
+
+
+            # 初始化模型
+            arm_model, gripper_model = load_policy(cfg, device)
+            DDIM = DDIMScheduler(**cfg.ddim_cfg)
+            DDIM.set_timesteps(cfg.eval_timesteps)
+            DDIM.alphas_cumprod = (DDIM.alphas_cumprod.to(device))
+
+            act_trunk = arm_model.act_trunk
+            input_dim = arm_model.input_dim
+            all_time_actions = np.zeros([max_timesteps, max_timesteps+act_trunk, input_dim])
+
+
+            # 初始化观测
+            # TODO 获得参考物体的pose 和 move obj pose
+            move_pose = get_pose_for_task(obs, task_name, task_description, move_obj_name, task)
+            ref_pose = get_abs_pose(ref_obj_name, obs, task)
+            relative_pose = compute_relative_pose_input(move_pose, ref_pose, rot_type)
+
+            # hist_obs = [torch.from_numpy(relative_pose) for _ in range(hist_len)]
+            # hist_obs = torch.stack(hist_obs, dim=0).unsqueeze(0).to(device).float()
+            hist_obs = torch.zeros([hist_len, input_dim]).unsqueeze(0).to(device).float()
+            hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
+            task_emb = get_task_embs(cfg, task_description, tz, bert).to(device).float()
+            gripper_state = np.array([0])
+            stage_change = torch.zeros(1).to(device).long()
+
+
+
+
             done = False
             smooth_idx = -1
             for i in tqdm(range(max_timesteps)):
@@ -256,6 +257,8 @@ def parse_args():
     parser.add_argument('--tasks', nargs='*', default=['close_jar'], help='The tasks to collect. If empty, all tasks are collected.')
     parser.add_argument('--image_size', nargs=2, type=int, default=[128, 128], help='The size of the images to save.')
     parser.add_argument('--variations', type=int, default=1, help='Number of variations to collect per task. -1 for all.')
+    parser.add_argument('--iters', type=int, default=1, )
+    parser.add_argument('--log_dir', type=str, )
     return parser.parse_args()
 
 
@@ -271,9 +274,9 @@ def main():
         task_files = args.tasks
 
     task_files = [
-        "meat_off_grill",
+        # "meat_off_grill",
         "place_shape_in_shape_sorter",
-        "put_groceries_in_cupboard",
+        # "put_groceries_in_cupboard",
     ]
 
     tasks = [task_file_to_task_class(t) for t in task_files]
