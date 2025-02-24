@@ -18,6 +18,9 @@ if __name__ == "__main__":
     task_list = os.listdir(os.path.join(args.root_dir, 'train'))
     # print(task_list)
     # task_list = ['pour_water', ]
+    # task_list = ['place_shape_in_shape_sorter']
+    # task_list = ['light_bulb_in']
+    # task_list = ['stack_blocks']
 
     work_dir = "./results/coordiff"
 
@@ -36,9 +39,13 @@ if __name__ == "__main__":
                     f' +task_list=[{",".join(task_list)}]'
                     f" +work_dir={work_dir}"
                     f" use_language=True"
+                    # f" batch_size=256"
                     f" batch_size=1024"
                     f" num_states=5"
-                    f" +resume_path='results/coordiff/all_lunch2/02-22_20-32-59'"
+                    f" epochs=2001"
+                    f" +resume_path='results/coordiff/all_larger_dit/02-24_15-14-21'"
+                    # f" +resume_path='results/coordiff/all_lunch4/02-23_14-13-28'"
+                    # f" +resume_path='results/coordiff/all_place_shape_s/02-24_01-57-01'"
                     # f" +resume_path='results/coordiff/all_data_fix/02-22_16-45-47'"
                     )
         os.system(commond)
