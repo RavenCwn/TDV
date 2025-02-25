@@ -83,6 +83,7 @@ def start(task, args, cfg, tz, bert):
     random_seed = np.random.get_state()
     task_name = task.get_name()
     hist_len = cfg.hist_len
+    gripper_hist_len = cfg.gripper_hist_len
     rot_type = cfg.rot_type
 
 
@@ -121,7 +122,7 @@ def start(task, args, cfg, tz, bert):
         DDIM.alphas_cumprod.to(device)
     )
 
-    max_timesteps = 400
+    max_timesteps = 800
     act_trunk = arm_model.act_trunk
     input_dim = arm_model.input_dim
     all_time_actions = np.zeros([max_timesteps, max_timesteps+act_trunk, input_dim])
@@ -138,10 +139,13 @@ def start(task, args, cfg, tz, bert):
     # hist_obs = torch.stack(hist_obs, dim=0).unsqueeze(0).to(device).float()
     hist_obs = torch.zeros([hist_len, input_dim]).unsqueeze(0).to(device).float()
     hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
+  
     task_emb = get_task_embs(cfg, task_description, tz, bert).to(device).float()
     gripper_state = np.array([0])
     stage_change = torch.zeros(1).to(device).long()
-
+    
+    gripper_hist_obs = torch.zeros([gripper_hist_len, input_dim]).unsqueeze(0).to(device).float()
+    gripper_hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
 
     step = 0
     done = False
@@ -181,7 +185,7 @@ def start(task, args, cfg, tz, bert):
             arm = noicy_action.detach().cpu().numpy().squeeze()
             all_time_actions[smooth_idx][smooth_idx:smooth_idx+act_trunk] = arm
             smooth_action = action_smooth(all_time_actions, smooth_idx)
-            stage_change = gripper_model(hist_obs, task_emb, state)
+            stage_change = gripper_model(gripper_hist_obs, task_emb, state)
             stage_change = stage_change.argmax().item()
 
             # print("T_o_g: ", T_o_g)
@@ -244,10 +248,16 @@ def start(task, args, cfg, tz, bert):
                 all_time_actions = np.zeros([max_timesteps, max_timesteps+act_trunk, input_dim])
                 smooth_idx = -1
 
+
             # hist_obs = [torch.from_numpy(relative_pose) for _ in range(hist_len)]
             # hist_obs = torch.stack(hist_obs, dim=0).unsqueeze(0).to(device).float()
             hist_obs = torch.zeros([hist_len, input_dim]).unsqueeze(0).to(device).float()
             hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
+            
+            gripper_hist_obs = torch.zeros([gripper_hist_len, input_dim]).unsqueeze(0).to(device).float()
+            gripper_hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
+
+
         elif stage_change:
             gripper_state = np.array([1])
 
@@ -263,6 +273,11 @@ def start(task, args, cfg, tz, bert):
 
         hist_obs = torch.cat([
             hist_obs[:, 1:],
+            torch.from_numpy(relative_pose).unsqueeze(0).to(device)
+        ], dim=1).float()
+        
+        gripper_hist_obs = torch.cat([
+            gripper_hist_obs[:, 1:],
             torch.from_numpy(relative_pose).unsqueeze(0).to(device)
         ], dim=1).float()
 
@@ -310,8 +325,8 @@ def main():
         # 加载配置文件
         cfg = compose(config_name="config")
 
-    cfg.arm_model_path = os.path.join(args.ckpt_dir, 'arm_model_best.ckpt')
-    cfg.gripper_model_path = os.path.join(args.ckpt_dir, 'gripper_model_best.ckpt')
+    cfg.arm_model_path = os.path.join(args.ckpt_dir, 'arm_model_last.ckpt')
+    cfg.gripper_model_path = os.path.join(args.ckpt_dir, 'gripper_model_last.ckpt')
 
     for t in tasks:
         start(t, args, cfg, tz, bert)

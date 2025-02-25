@@ -71,7 +71,7 @@ if __name__ == "__main__":
                 print(f"relevant_obj: {relevant_obj.shape}")
 
                 ref_pos = ref_obj[:, :3, 3]
-                move_pos = ref_obj[:, :3, 3]
+                move_pos = move_obj[:, :3, 3]
                 ref_quat = rotation_matrix_to_quaternion(ref_obj[:, :3, :3])
                 move_quat = rotation_matrix_to_quaternion(move_obj[:, :3, :3])
                 ref_pose = np.concatenate([ref_pos, ref_quat], axis=1)
