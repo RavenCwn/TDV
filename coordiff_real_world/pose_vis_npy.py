@@ -131,5 +131,5 @@ def plotly_visualize_transformations_from_npy(npy_file):
 # 调用可视化函数，指定 .npy 文件路径
 dot1 = 0
 dot2 = 325
-npy_file = "cup1_poses.npy"  # 更改为你的 .npy 文件路径
+npy_file = "/home/a4090/lfwh/CoorDiff/coordiff_real_world/origin_data/pour_water/episode_0/cup0_poses.npy"  # 更改为你的 .npy 文件路径
 plotly_visualize_transformations_from_npy(npy_file)

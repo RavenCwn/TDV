@@ -98,6 +98,7 @@ def start(rlbench_env, task_class, args, cfg, tz, bert):
             random_seed = np.random.get_state()
             hist_len = cfg.hist_len
             rot_type = cfg.rot_type
+            gripper_hist_len = cfg.gripper_hist_len
 
             id = -1
             for i, task_desc in enumerate(complex_obj_list[task_name]):
@@ -149,6 +150,9 @@ def start(rlbench_env, task_class, args, cfg, tz, bert):
             stage_change = torch.zeros(1).to(device).long()
 
 
+            gripper_hist_obs = torch.zeros([gripper_hist_len, input_dim]).unsqueeze(0).to(device).float()
+            gripper_hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
+
             done = False
             smooth_idx = -1
             for i in tqdm(range(max_timesteps)):
@@ -179,7 +183,7 @@ def start(rlbench_env, task_class, args, cfg, tz, bert):
                     arm = noicy_action.detach().cpu().numpy().squeeze()
                     all_time_actions[smooth_idx][smooth_idx:smooth_idx+act_trunk] = arm
                     smooth_action = action_smooth(all_time_actions, smooth_idx)
-                    stage_change = gripper_model(hist_obs, task_emb, state)
+                    stage_change = gripper_model(gripper_hist_obs, task_emb, state)
                     stage_change = stage_change.argmax().item()
 
                     gripper_pose = get_abs_action(smooth_action, ref_pose, rot_type, T_o_g)
@@ -230,6 +234,10 @@ def start(rlbench_env, task_class, args, cfg, tz, bert):
                     # hist_obs = torch.stack(hist_obs, dim=0).unsqueeze(0).to(device).float()
                     hist_obs = torch.zeros([hist_len, input_dim]).unsqueeze(0).to(device).float()
                     hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
+
+                    gripper_hist_obs = torch.zeros([gripper_hist_len, input_dim]).unsqueeze(0).to(device).float()
+                    gripper_hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
+
                 elif stage_change:  # 最后一个阶段只保证gripper张开
                     gripper_state = np.array([1])
 
@@ -242,6 +250,11 @@ def start(rlbench_env, task_class, args, cfg, tz, bert):
 
                 hist_obs = torch.cat([
                     hist_obs[:, 1:],
+                    torch.from_numpy(relative_pose).unsqueeze(0).to(device)
+                ], dim=1).float()
+
+                gripper_hist_obs = torch.cat([
+                    gripper_hist_obs[:, 1:],
                     torch.from_numpy(relative_pose).unsqueeze(0).to(device)
                 ], dim=1).float()
 
@@ -315,8 +328,8 @@ def main():
         # 加载配置文件
         cfg = compose(config_name="config")
 
-    cfg.arm_model_path = os.path.join(args.ckpt_dir, 'arm_model_best.ckpt')
-    cfg.gripper_model_path = os.path.join(args.ckpt_dir, 'gripper_model_best.ckpt')
+    cfg.arm_model_path = os.path.join(args.ckpt_dir, 'arm_model_last.ckpt')
+    cfg.gripper_model_path = os.path.join(args.ckpt_dir, 'gripper_model_last.ckpt')
     rlbench_env = Environment(
         action_mode=MoveArmThenGripper(EndEffectorPoseViaPlanning(), Discrete()),
         obs_config=ObservationConfig(),

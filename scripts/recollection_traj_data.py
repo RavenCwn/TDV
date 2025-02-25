@@ -127,7 +127,7 @@ def save_stages(gripper_open_with_force, task_related_obj_list, traj_path, outpu
         elif gripper_state == 1 and last_gripper_state == 0:
             print(f"Release obj end recording: {step}")
             moving_obj, reference_obj = task_related_obj_list[state][:2]
-            
+            print("moving_obj, reference_obj: ", moving_obj, reference_obj)
             end_idx = step
             if end_idx - start_idx > 10:
                 save_when_close(traj_path, moving_obj, reference_obj, start_idx, end_idx, re_state_path, task_description, tz, model)
@@ -152,7 +152,7 @@ def save_stages(gripper_open_with_force, task_related_obj_list, traj_path, outpu
             save_when_close(traj_path, moving_obj, reference_obj, start_idx, end_idx, re_state_path, task_description, tz, model)
             state += 1
 
-    if state == 0 or state >= 4:
+    if state == 0 or state >= 3:
         print("state: ", state)
         import ipdb; ipdb.set_trace()
 
@@ -357,7 +357,7 @@ def different_task(episode_path, output_path, task_name):
             save_when_close(traj_path, moving_obj, reference_obj, start_idx, end_idx, re_state_path, task_description, tz, model)
             state += 1
 
-    if state == 0 or state >= 4:
+    if state == 0 or state >= 3:
         print("state: ", state)
         import ipdb; ipdb.set_trace()
 
@@ -374,7 +374,7 @@ if __name__ == '__main__':
                     gripper_change.npy
     '''
     mode = "val"
-    mode = "train"
+    # mode = "train"
 
     root_dir = f"data/color_combine_var_data/{mode}"
     recollection_dir = f"data/color3_recollect_traj_data/{mode}"
@@ -392,25 +392,25 @@ if __name__ == '__main__':
     })  # hardcode the config to get task embeddings according to original Libero code
         
     simple_task_list = [
-        "close_jar",
-        "insert_onto_square_peg",
-        "light_bulb_in",
-        "put_money_in_safe",
-        "reach_and_drag",
-        "stack_wine",
+        # "close_jar",
+        # "insert_onto_square_peg",
+        # "light_bulb_in",
+        # "put_money_in_safe",
+        # "reach_and_drag",
+        # "stack_wine",
         # "turn_tap"
     ]
 
     different_obj_task_list = [
-        "meat_off_grill",
-        "place_shape_in_shape_sorter",
-        "put_groceries_in_cupboard",
+        # "meat_off_grill",
+        # "place_shape_in_shape_sorter",
+        # "put_groceries_in_cupboard",
     ]
 
     complex_task_list = [
-        "place_cups",
+        # "place_cups",
         "stack_blocks",
-        "stack_cups",
+        # "stack_cups",
     ]
 
     ''' task level '''
