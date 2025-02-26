@@ -79,7 +79,7 @@ class MLPStateJudger(nn.Module):
         """
         mix = rearrange(hist, 'b t c -> b (t c)')
         if self.use_language:
-            text = self.lang_encoder()
+            text = self.lang_encoder(text)
             mix = torch.concat([mix, text], dim=1)
         if self.num_states > 1:
             state = self.state_encoder(state)

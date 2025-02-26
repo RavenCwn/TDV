@@ -39,7 +39,7 @@ arm_model_path: null
 gripper_model_path: null
 
 
-hist_len: 15
+hist_len: 30
 rot_type: '6d'
 hidden_dim: 64
 act_trunk: 10
