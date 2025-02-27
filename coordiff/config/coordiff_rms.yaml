@@ -1,0 +1,11 @@
+defaults:
+  - coordiff.yaml
+  - _self_
+
+hist_len: 30
+
+arm_model_cfg:
+  dit_cfg:
+    model_cls: DiTBlockRms
+    final_layer_cls: FinalActionLayerRms
+    

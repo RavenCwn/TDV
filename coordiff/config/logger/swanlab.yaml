@@ -1,0 +1,17 @@
+task_name: close_jar
+num_of_demos: 10
+experiment: ${task_name}_demo${num_of_demos} # tag for swanlab and log dir
+
+hydra:
+  run:
+    dir: ./results/coordiff/${experiment}_${now:%m%d}_${now:%H%M}
+  sweep:
+    dir: ./results/coordiff/${experiment}_${now:%m%d}_${now:%H%M}
+    subdir: ${hydra.job.num}
+
+swanlab:
+  project: coordiff
+  name: ${experiment}_${now:%m%d}_${now:%H%M}_${hydra:job.num}
+  group: ${experiment}
+  mode: cloud
+  dir: ${hydra:run.dir}

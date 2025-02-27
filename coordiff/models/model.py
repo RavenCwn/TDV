@@ -3,12 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from coordiff.models.language_encoder import MLPEncoder
 from coordiff.models.transformer import Transformer
-from coordiff.models.dit import DiTBlock, FinalActionLayer, TimestepEmbedder
+from coordiff.models.dit import DiTBlockRms, FinalActionLayerRms, TimestepEmbedder, DiTBlock, FinalActionLayer
 from coordiff.models.pos_embed import *
 from einops import rearrange
 
 
-class MLPStateJudger(nn.Module):
+class ProcedureMLP(nn.Module):
     def __init__(self, 
         hist_len, rot_type, hidden_dim, use_language, layers_dim, drop_rate,
         device,
@@ -89,7 +89,7 @@ class MLPStateJudger(nn.Module):
 
         return logits
 
-class StateJudger(nn.Module):
+class ProcedureTransformer(nn.Module):
     def __init__(self, 
         hist_len, rot_type, hidden_dim, use_language, drop_rate,
         device,
@@ -262,7 +262,7 @@ class CoorDiff(nn.Module):
         self.device = device
     
         self.dit_decoder = self.setup_dit_decoder(dit_cfg)
-        self.final_layer = FinalActionLayer(hidden_dim, input_dim)
+        self.final_layer = eval(dit_cfg.final_layer_cls)(hidden_dim, input_dim)
         self.time_embedder = TimestepEmbedder(hidden_dim)
         
         self.input_dim = input_dim
@@ -327,7 +327,7 @@ class CoorDiff(nn.Module):
     
     def setup_dit_decoder(self, dit_cfg):
         dit_decoder = nn.ModuleList([
-            DiTBlock(
+            eval(dit_cfg.model_cls)(
                 hidden_size=dit_cfg.hidden_dim,
                 num_heads=dit_cfg.num_heads,
                 mlp_ratio=dit_cfg.mlp_ratio,
