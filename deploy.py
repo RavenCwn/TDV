@@ -25,6 +25,8 @@ import time
 import shutil
 from eval_utils import *
 
+
+
 def test(args, cfg, tz, bert):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     max_timesteps = 200
@@ -33,8 +35,8 @@ def test(args, cfg, tz, bert):
     rot_type = cfg.rot_type
     hist_len = cfg.hist_len
     
-    relevant_traj = np.load("coordiff_real_world/recollection_data/train/pour_water/episode_4/0000/relevant_traj.npy")
-    task_emb = np.load("coordiff_real_world/recollection_data/train/pour_water/episode_4/0000/task_language_embed.npy")
+    relevant_traj = np.load("coordiff_real_world/recollection_data/train/pour_water/episode_0/0000/relevant_traj.npy")
+    task_emb = np.load("coordiff_real_world/recollection_data/train/pour_water/episode_0/0000/task_language_embed.npy")
     task_emb = torch.from_numpy(task_emb).float().to(device)
 
     # 初始化模型
@@ -68,7 +70,6 @@ def test(args, cfg, tz, bert):
             torch.from_numpy(ref_T[3:]).unsqueeze(0)
         ).numpy()
         gt_trajectory.append((pos, rot))
-        print(pos)
 
     for i in tqdm(range(max_timesteps)):
 
@@ -122,60 +123,61 @@ def test(args, cfg, tz, bert):
             torch.from_numpy(relative_pose).unsqueeze(0).unsqueeze(0).to(device)
         ], dim=1).float()
 
+    plot_stepwise_trajectory(generated_trajectory, gt_trajectory)
 
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
+    # import matplotlib.pyplot as plt
+    # from mpl_toolkits.mplot3d import Axes3D
 
 
-    # 提取轨迹点
-    gen_positions = np.array([pos for pos, _ in generated_trajectory])
-    gt_positions = np.array([pos for pos, _ in gt_trajectory])
+    # # 提取轨迹点
+    # gen_positions = np.array([pos for pos, _ in generated_trajectory])
+    # gt_positions = np.array([pos for pos, _ in gt_trajectory])
 
-    # 创建 3D 图
-    fig = plt.figure(figsize=(10, 8))
-    ax = fig.add_subplot(111, projection='3d')
+    # # 创建 3D 图
+    # fig = plt.figure(figsize=(10, 8))
+    # ax = fig.add_subplot(111, projection='3d')
 
-    # 画轨迹
-    ax.plot(gen_positions[:, 0], gen_positions[:, 1], gen_positions[:, 2], markersize=1, marker='o', linestyle='-', color='r', label="Generated Trajectory")
-    ax.plot(gt_positions[:, 0], gt_positions[:, 1], gt_positions[:, 2],  markersize=1, marker='o', linestyle='-', color='b', label="Ground Truth Trajectory")
+    # # 画轨迹
+    # ax.plot(gen_positions[:, 0], gen_positions[:, 1], gen_positions[:, 2], markersize=1, marker='o', linestyle='-', color='r', label="Generated Trajectory")
+    # ax.plot(gt_positions[:, 0], gt_positions[:, 1], gt_positions[:, 2],  markersize=1, marker='o', linestyle='-', color='b', label="Ground Truth Trajectory")
 
-    # 画坐标轴方向
-    axis_length = 0.001  # 增大坐标轴长度，便于观察旋转
+    # # 画坐标轴方向
+    # axis_length = 0.001  # 增大坐标轴长度，便于观察旋转
 
-    def draw_axes(ax, pos, rot, label_prefix):
-        """ 在给定位置绘制局部坐标系 """
-        x_axis, y_axis, z_axis = rot[:, 0], rot[:, 1], rot[:, 2]
+    # def draw_axes(ax, pos, rot, label_prefix):
+    #     """ 在给定位置绘制局部坐标系 """
+    #     x_axis, y_axis, z_axis = rot[:, 0], rot[:, 1], rot[:, 2]
         
-        # X轴 (红色)
-        ax.quiver(pos[0], pos[1], pos[2], x_axis[0], x_axis[1], x_axis[2], length=axis_length, color='r', linewidth=2)
-        ax.text(pos[0] + x_axis[0] * axis_length, pos[1] + x_axis[1] * axis_length, pos[2] + x_axis[2] * axis_length, f'{label_prefix}X', color='r', fontsize=10)
+    #     # X轴 (红色)
+    #     ax.quiver(pos[0], pos[1], pos[2], x_axis[0], x_axis[1], x_axis[2], length=axis_length, color='r', linewidth=2)
+    #     ax.text(pos[0] + x_axis[0] * axis_length, pos[1] + x_axis[1] * axis_length, pos[2] + x_axis[2] * axis_length, f'{label_prefix}X', color='r', fontsize=10)
 
-        # Y轴 (绿色)
-        ax.quiver(pos[0], pos[1], pos[2], y_axis[0], y_axis[1], y_axis[2], length=axis_length, color='g', linewidth=2)
-        ax.text(pos[0] + y_axis[0] * axis_length, pos[1] + y_axis[1] * axis_length, pos[2] + y_axis[2] * axis_length, f'{label_prefix}Y', color='g', fontsize=10)
+    #     # Y轴 (绿色)
+    #     ax.quiver(pos[0], pos[1], pos[2], y_axis[0], y_axis[1], y_axis[2], length=axis_length, color='g', linewidth=2)
+    #     ax.text(pos[0] + y_axis[0] * axis_length, pos[1] + y_axis[1] * axis_length, pos[2] + y_axis[2] * axis_length, f'{label_prefix}Y', color='g', fontsize=10)
 
-        # Z轴 (蓝色)
-        ax.quiver(pos[0], pos[1], pos[2], z_axis[0], z_axis[1], z_axis[2], length=axis_length, color='b', linewidth=2)
-        ax.text(pos[0] + z_axis[0] * axis_length, pos[1] + z_axis[1] * axis_length, pos[2] + z_axis[2] * axis_length, f'{label_prefix}Z', color='b', fontsize=10)
+    #     # Z轴 (蓝色)
+    #     ax.quiver(pos[0], pos[1], pos[2], z_axis[0], z_axis[1], z_axis[2], length=axis_length, color='b', linewidth=2)
+    #     ax.text(pos[0] + z_axis[0] * axis_length, pos[1] + z_axis[1] * axis_length, pos[2] + z_axis[2] * axis_length, f'{label_prefix}Z', color='b', fontsize=10)
 
-    # # 遍历轨迹绘制坐标系
-    # for pos, rot in generated_trajectory:
-    #     draw_axes(ax, pos, rot[0], "Gen_")
+    # # # 遍历轨迹绘制坐标系
+    # # for pos, rot in generated_trajectory:
+    # #     draw_axes(ax, pos, rot[0], "Gen_")
 
-    # for pos, rot in gt_trajectory:
-    #     draw_axes(ax, pos, rot[0], "GT_")
+    # # for pos, rot in gt_trajectory:
+    # #     draw_axes(ax, pos, rot[0], "GT_")
 
-    # 轴标签
-    ax.set_xlim(-0.5, 0.5)
-    ax.set_ylim(-0.5, 0.5)
-    ax.set_zlim(-0.5, 0.5)
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.set_zlabel("Z")
-    ax.set_title("Comparison of Generated and Ground Truth Trajectories")
+    # # 轴标签
+    # ax.set_xlim(-0.5, 0.5)
+    # ax.set_ylim(-0.5, 0.5)
+    # ax.set_zlim(-0.5, 0.5)
+    # ax.set_xlabel("X")
+    # ax.set_ylabel("Y")
+    # ax.set_zlabel("Z")
+    # ax.set_title("Comparison of Generated and Ground Truth Trajectories")
 
-    ax.legend()
-    plt.show()
+    # ax.legend()
+    # plt.show()
 
 def deploy(args, cfg, tz, bert):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

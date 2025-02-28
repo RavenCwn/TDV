@@ -18,7 +18,7 @@ def create_episode_directory(task_dir, episode_index):
     """
     创建episode文件夹
     """
-    episode_dir = os.path.join(task_dir, f"episode_{episode_index}")
+    episode_dir = os.path.join(task_dir, f"episo de_{episode_index}")
     if not os.path.exists(episode_dir):
         os.makedirs(episode_dir)
         os.makedirs(os.path.join(episode_dir, "depth"))
@@ -78,13 +78,14 @@ def main():
     """
     # 输入任务名
     task_name = input("请输入任务名称: ")
+    task_name = task_name.replace(" ", "_")
     task_dir = create_task_directory(task_name)
 
     # 配置RealSense相机
     pipeline = rs.pipeline()
     config = rs.config()
-    config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)  # RGB流
-    config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)   # Depth流
+    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)  # RGB流
+    config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)   # Depth流
 
     # 启动RealSense相机
     pipeline.start(config)
@@ -107,7 +108,6 @@ def main():
         # 获取当前帧
         frames = pipeline.wait_for_frames()
 
-
         # 对齐深度图像到RGB图像
         aligned_frames = align.process(frames)
         color_frame = aligned_frames.get_color_frame()
@@ -124,8 +124,15 @@ def main():
         rgb_image = np.asanyarray(color_frame.get_data())
         # print(rgb_image.shape, depth_image.shape)
 
-        cv2.imshow('RGB Image', rgb_image)
+        # 可视化深度图像（应用颜色映射）
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
 
+        # 显示RGB图像
+        cv2.imshow('RGB Image', rgb_image)
+        
+        # 显示深度图像
+        cv2.imshow('Depth Image', depth_colormap)
+        
         # 监听按键
         key = cv2.waitKey(1) & 0xFF
 

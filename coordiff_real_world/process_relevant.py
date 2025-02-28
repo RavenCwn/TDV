@@ -40,7 +40,7 @@ def get_task_embs(cfg, description, tz, model):
 if __name__ == "__main__":
 
     origin_data_dir = "origin_data"
-    output_data_dir = "recollection_data/train"
+    output_data_dir = "recollection_data_smooth5/train"
 
     task_name_dirs = sorted(os.listdir(origin_data_dir))
 
@@ -78,7 +78,7 @@ if __name__ == "__main__":
                 move_pose = np.concatenate([move_pos, move_quat], axis=1)
                 
                 print(ref_pose.shape, move_pose.shape)
-                relevant_traj = compute_relative_traj_input(move_pose, ref_pose, rot_type='6d')
+                relevant_traj = compute_relative_traj_smooth(move_pose, ref_pose, rot_type='6d', smoothing_window=5)
                 
                 output_task_epi = os.path.join(output_data_dir, task_description, epi, f"{state:04d}")
                 os.makedirs(output_task_epi, exist_ok=True)
