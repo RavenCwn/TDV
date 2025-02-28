@@ -256,6 +256,67 @@ def compute_relative_traj_input(moving_traj, ref_traj, rot_type='6d'):
     
     return np.array(relevant_traj)
 
+def compute_relative_traj_smooth_savgol(moving_traj, ref_traj, rot_type='6d', window_length=5, polyorder=2):
+    #  (X,Y,Z,Qx,Qy,Qz,Qw)
+
+    relevant_traj = []
+    for m, r in zip(moving_traj, ref_traj):
+        T_r_m = compute_relative_pose_T(m, r)
+        relevant_traj.append(T_r_m)
+
+    # 转换为numpy数组以便进行平滑处理
+    relevant_traj = np.array(relevant_traj)  # 形状为 (N, 4, 4)
+
+    # 提取位置和旋转
+    positions = relevant_traj[:, :3, 3]
+    rotations = np.array([rotation_matrix_to_quaternion(T[:3, :3]) for T in relevant_traj])
+
+    # 使用Savitzky-Golay滤波器进行平滑
+    smoothed_positions = savgol_filter(positions, window_length=window_length, polyorder=polyorder, axis=0)
+    smoothed_rotations = savgol_filter(rotations, window_length=window_length, polyorder=polyorder, axis=0)
+
+    # 组合位置和旋转
+    final_traj = []
+    for pos, rot in zip(smoothed_positions, smoothed_rotations):
+        final_traj.append(np.concatenate([pos, rot]))
+
+    return np.array(final_traj)
+
+def compute_relative_traj_smooth(moving_traj, ref_traj, rot_type='6d', smoothing_window=3):
+    #  (X,Y,Z,Qx,Qy,Qz,Qw)
+
+    relevant_traj = []
+    for m, r in zip(moving_traj, ref_traj):
+        T_r_m = compute_relative_pose_T(m, r)
+        relevant_traj.append(T_r_m)
+
+    # 转换为numpy数组以便进行平滑处理
+    relevant_traj = np.array(relevant_traj)  # 形状为 (N, 4, 4)
+
+    # 应用平滑处理（移动平均）
+    smoothed_traj = np.copy(relevant_traj)
+    for i in range(relevant_traj.shape[0]):
+        start = max(0, i - smoothing_window // 2)
+        end = min(relevant_traj.shape[0], i + smoothing_window // 2 + 1)
+        smoothed_traj[i] = np.mean(relevant_traj[start:end], axis=0)
+
+    # 将平滑后的结果转换为所需的旋转格式
+    final_traj = []
+    for T in smoothed_traj:
+        if rot_type == 'quat':
+            rot = rotation_matrix_to_quaternion(T[:3, :3])
+        elif rot_type == 'rpy':
+            rot = rotation_matrix_to_rpy(T[:3, :3])
+        elif rot_type == '6d':
+            rot = pt3d.matrix_to_rotation_6d(
+                torch.from_numpy(T[:3, :3]).unsqueeze(0)
+            ).numpy().flatten()
+        else:
+            raise NotImplementedError("Unsupported rotation type")
+        
+        final_traj.append(np.concatenate([T[:3, 3], rot]))  # 组合位置和旋转
+
+    return np.array(final_traj)
 
 def get_abs_action(relative_pose, ref_pose, rot_type='6d', T_o_g=None):
     T_ref = np.eye(4)

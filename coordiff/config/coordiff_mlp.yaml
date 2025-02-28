@@ -39,7 +39,7 @@ arm_model_path: null
 gripper_model_path: null
 
 
-hist_len: 30
+hist_len: 30  # or 15
 rot_type: '6d'
 hidden_dim: 64
 act_trunk: 10
@@ -73,14 +73,15 @@ scheduler_cfg:
     eta_min: 0.
     last_epoch: -1
 
-gripper_model_name: MLPStateJudger
+gripper_model_name: ProcedureMLP
 gripper_model_cfg:
   hist_len: ${hist_len}
   rot_type: ${rot_type}
   hidden_dim: ${hidden_dim}
   use_language: ${use_language}
-  layers_dim: [256, 512, 256]
+  num_states: ${num_states}
   drop_rate: 0.1
+  layers_dim: [128, 256, 512]
   language_enc_cfg:
     network_name: MLPEncoder
     input_dim: 768
@@ -103,6 +104,8 @@ arm_model_cfg:
     num_layers: 4
     nhead: 2
   dit_cfg:
+    model_cls: DiTBlock
+    final_layer_cls: FinalActionLayer
     hidden_dim: 64
     num_heads: 2
     mlp_ratio: 4
@@ -113,10 +116,13 @@ arm_model_cfg:
     network_name: MLPEncoder
     input_dim: 768
     hidden_dim: 128
-    num_layers: 2
-  
-  
+    num_layers: 1
+
+
 dataset_cfg:
   act_chunk: ${act_trunk}
   hist_len: ${hist_len}
   rot_type: ${rot_type}
+
+
+

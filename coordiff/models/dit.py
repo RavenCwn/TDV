@@ -98,7 +98,7 @@ class LabelEmbedder(nn.Module):
 #                                 Core DiT Model                                #
 #################################################################################
 
-class DiTBlock(nn.Module):
+class DiTBlockRms(nn.Module):
     """
     A DiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
     """
@@ -127,7 +127,7 @@ class DiTBlock(nn.Module):
         return x
 
 
-class FinalLayer(nn.Module):
+class FinalLayerRms(nn.Module):
     """
     The final layer of DiT.
     """
@@ -146,6 +146,61 @@ class FinalLayer(nn.Module):
         x = self.linear(x)
         return x
 
+class DiTBlock(nn.Module):
+    """
+    A DiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
+    """
+    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, **block_kwargs):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.attn = Attention(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
+        self.norm2 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        mlp_hidden_dim = int(hidden_size * mlp_ratio)
+        approx_gelu = lambda: nn.GELU(approximate="tanh")
+        self.mlp = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
+        self.adaLN_modulation = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(hidden_size, 6 * hidden_size, bias=True)
+        )
+
+    def forward(self, x, c):
+        '''
+        Args:
+            x: (N, T, D)
+            c: (N, D)
+        '''
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=1)
+        x = x + gate_msa.unsqueeze(1) * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
+        x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
+        return x
+
+class FinalLayer(nn.Module):
+    """
+    The final layer of DiT.
+    """
+    def __init__(self, hidden_size, patch_size, out_channels):
+        super().__init__()
+        self.norm_final = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.linear = nn.Linear(hidden_size, patch_size * patch_size * out_channels, bias=True)
+        self.adaLN_modulation = nn.Sequential(
+            nn.SiLU(),
+            nn.Linear(hidden_size, 2 * hidden_size, bias=True)
+        )
+
+    def forward(self, x, c):
+        shift, scale = self.adaLN_modulation(c).chunk(2, dim=1)
+        x = modulate(self.norm_final(x), shift, scale)
+        x = self.linear(x)
+        return x
+
+class FinalActionLayerRms(FinalLayerRms):
+    """
+    The final layer of DiT.
+    """
+    def __init__(self, hidden_size, action_dim):
+        super().__init__(hidden_size, 1, 1)
+        self.linear = nn.Linear(hidden_size, action_dim, bias=True)
+
 class FinalActionLayer(FinalLayer):
     """
     The final layer of DiT.
@@ -154,7 +209,7 @@ class FinalActionLayer(FinalLayer):
         super().__init__(hidden_size, 1, 1)
         self.linear = nn.Linear(hidden_size, action_dim, bias=True)
 
-class FinalSortFlowLayer(FinalLayer):
+class FinalSortFlowLayer(FinalLayerRms):
     """
     The final layer of DiT.
     """
@@ -162,7 +217,7 @@ class FinalSortFlowLayer(FinalLayer):
         super().__init__(hidden_size, 1, 1)
         self.linear = nn.Linear(hidden_size, num_track_points * out_channels, bias=True)
 
-class FinalFlowLayer(FinalLayer):
+class FinalFlowLayer(FinalLayerRms):
     """
     The final layer of DiT.
     """
@@ -203,9 +258,9 @@ class DiT(nn.Module):
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, hidden_size), requires_grad=False)
 
         self.blocks = nn.ModuleList([
-            DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio) for _ in range(depth)
+            DiTBlockRms(hidden_size, num_heads, mlp_ratio=mlp_ratio) for _ in range(depth)
         ])
-        self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels)
+        self.final_layer = FinalLayerRms(hidden_size, patch_size, self.out_channels)
         self.initialize_weights()
 
     def initialize_weights(self):

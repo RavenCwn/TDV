@@ -1,0 +1,13 @@
+defaults:
+  - coordiff_mlp.yaml
+  - _self_
+
+hist_len: 30
+
+gripper_model_name: ProcedureMLP
+
+arm_model_cfg:
+  dit_cfg:
+    model_cls: DiTBlockRms
+    final_layer_cls: FinalActionLayerRms
+    

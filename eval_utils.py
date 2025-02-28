@@ -193,3 +193,104 @@ def get_pose_for_task(obs, task_name, task_description, obj_name, task):
         # print("grasp_obj: ", target_obj)
 
     return ref_pose
+
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
+
+def plot_stepwise_trajectory(generated_trajectory, gt_trajectory):
+    # Create a 3D plot
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # 仅在生成的轨迹非空时进行可视化
+    if generated_trajectory is not None and len(generated_trajectory) > 0:
+        gen_positions = np.array([pos for pos, _ in generated_trajectory])
+        ax.plot(gen_positions[:, 0], gen_positions[:, 1], gen_positions[:, 2], markersize=1, marker='o', linestyle='-', color='r', label="Generated Trajectory")
+    
+    # 仅在真实轨迹非空时进行可视化
+    if gt_trajectory is not None and len(gt_trajectory) > 0:
+        gt_positions = np.array([pos for pos, _ in gt_trajectory])
+        ax.plot(gt_positions[:, 0], gt_positions[:, 1], gt_positions[:, 2], markersize=1, marker='o', linestyle='-', color='b', label="Ground Truth Trajectory")
+
+    # Draw coordinate axes for initial points
+    axis_length = 0.1  # Adjust axis length
+
+    def draw_axes(ax, pos, rot, label_prefix):
+        x_axis, y_axis, z_axis = rot[:, 0], rot[:, 1], rot[:, 2]
+        ax.quiver(pos[0], pos[1], pos[2], x_axis[0], x_axis[1], x_axis[2], length=axis_length, color='r', linewidth=2)
+        ax.quiver(pos[0], pos[1], pos[2], y_axis[0], y_axis[1], y_axis[2], length=axis_length, color='g', linewidth=2)
+        ax.quiver(pos[0], pos[1], pos[2], z_axis[0], z_axis[1], z_axis[2], length=axis_length, color='b', linewidth=2)
+
+    # Set axis labels and title
+    ax.set_xlim(-0.5, 0.5)
+    ax.set_ylim(-0.5, 0.5)
+    ax.set_zlim(-0.5, 0.5)
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+    ax.set_title("Comparison of Generated and Ground Truth Trajectories")
+    ax.legend()
+
+    idx = 0
+    total_points = len(generated_trajectory) if generated_trajectory is not None else 0
+
+    # Initialize the plotted points (scatter plots for generated and ground truth)
+    scatters_gen = ax.scatter([], [], [], color='r', s=50)
+    scatters_gt = ax.scatter([], [], [], color='b', s=50)
+
+    # Update the scatter plot dynamically
+    def update_plot():
+        if idx < total_points:
+            pos_gen, rot_gen = generated_trajectory[idx]
+            pos_gt, rot_gt = gt_trajectory[idx] if gt_trajectory is not None and len(gt_trajectory) > 0 else (None, None)
+            
+            # Update the scatter data for generated trajectory
+            scatters_gen._offsets3d = (gen_positions[:idx+1, 0], gen_positions[:idx+1, 1], gen_positions[:idx+1, 2])
+            if pos_gt is not None:
+                scatters_gt._offsets3d = (gt_positions[:idx+1, 0], gt_positions[:idx+1, 1], gt_positions[:idx+1, 2])
+
+            # Update coordinate axes for both
+            ax.cla()  # Clear the axes
+            ax.set_xlim(-0.5, 0.5)
+            ax.set_ylim(-0.5, 0.5)
+            ax.set_zlim(-0.5, 0.5)
+            ax.set_xlabel("X")
+            ax.set_ylabel("Y")
+            ax.set_zlabel("Z")
+            ax.set_title("Comparison of Generated and Ground Truth Trajectories")
+
+            # Draw the updated trajectories
+            if generated_trajectory is not None and len(generated_trajectory) > 0:
+                ax.plot(gen_positions[:, 0], gen_positions[:, 1], gen_positions[:, 2], markersize=1, marker='o', linestyle='-', color='r', label="Generated Trajectory")
+            if gt_trajectory is not None and len(gt_trajectory) > 0:
+                ax.plot(gt_positions[:, 0], gt_positions[:, 1], gt_positions[:, 2], markersize=1, marker='o', linestyle='-', color='b', label="Ground Truth Trajectory")
+
+            # Draw the axes again
+            draw_axes(ax, pos_gen, rot_gen[0], "Gen_")
+            if pos_gt is not None:
+                draw_axes(ax, pos_gt, rot_gt[0], "GT_")
+            plt.draw()
+
+    # Key press event handler
+    def on_key(event):
+        nonlocal idx
+        if event.key == 'right':  # Right arrow key to show the next point
+            if idx < total_points - 1:
+                idx += 1
+                update_plot()
+            else:
+                print("End of trajectory!")
+        elif event.key == 'left':  # Left arrow key to go back to previous point
+            if idx > 0:
+                idx -= 1
+                update_plot()
+            else:
+                print("Beginning of trajectory!")
+
+    # Connect the key press event
+    fig.canvas.mpl_connect('key_press_event', on_key)
+
+    plt.show()
+

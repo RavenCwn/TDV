@@ -43,7 +43,7 @@ if __name__ == "__main__":
                     f" batch_size=3072"
                     f" num_states=5"
                     f" epochs=4001"
-                    f" +resume_path='results/coordiff/all_mlp_gate/02-26_14-52-58'"
+                    # f" +resume_path='results/coordiff/all_mlp_gate/02-26_14-52-58'"
                     # f" +resume_path='results/coordiff/all_larger_dit/02-24_17-39-48'"
                     # f" +resume_path='results/coordiff/all_larger_dit/02-24_15-14-21'"
                     # f" +resume_path='results/coordiff/all_lunch4/02-23_14-13-28'"
