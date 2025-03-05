@@ -33,8 +33,8 @@ def test():
     num_stages = 1
 
     
-    relevant_traj = np.load("coordiff_real_world/recollection_data_smooth5/train/pour_water/episode_0/0000/relevant_traj.npy")
-    task_emb = np.load("coordiff_real_world/recollection_data_smooth5/train/pour_water/episode_0/0000/task_language_embed.npy")
+    relevant_traj = np.load("/home/user/pgp/CoorDiff/coordiff_real_world/recollection_data_smooth5/train/pour3/episode_4/0000/relevant_traj.npy")
+    task_emb = np.load("/home/user/pgp/CoorDiff/coordiff_real_world/recollection_data_smooth5/train/pour3/episode_4/0000/task_language_embed.npy")
     task_emb = torch.from_numpy(task_emb).float().to(device)
 
     

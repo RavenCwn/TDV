@@ -3,14 +3,6 @@ import argparse
 import os
 from PIL import Image
 
-from rlbench.action_modes.action_mode import MoveArmThenGripper
-from rlbench.action_modes.arm_action_modes import EndEffectorPoseViaPlanning
-from rlbench.action_modes.gripper_action_modes import Discrete
-from rlbench.environment import Environment
-from rlbench.observation_config import ObservationConfig
-from rlbench.backend.utils import task_file_to_task_class
-
-import rlbench.backend.task as task
 import hydra
 import torch
 from easydict import EasyDict
@@ -25,19 +17,51 @@ import time
 import shutil
 from eval_utils import *
 
+import lcm
+import threading
+from lcm_type.Matrix4x4Flat import Matrix4x4Flat
+lc = lcm.LCM()
 
+relevant_pose_T = None
+
+# 处理接收到的矩阵消息
+def matrix_handler(channel, data):
+    global relevant_pose_T
+    msg = Matrix4x4Flat.decode(data)
+    
+    # 将一维数组重新转换为4x4矩阵
+    matrix = np.array(msg.matrix).reshape(4, 4)
+    relevant_pose_T = matrix
+    # print("Received matrix:")
+    # print(matrix)
+
+# 订阅MATRIX_CHANNEL频道
+subscription = lc.subscribe("relevant_pose", matrix_handler)
+subscription.set_queue_capacity(1)
+
+# 处理LCM消息的函数
+def handle_lcm():
+    print("Waiting for messages...")
+    while True:
+        lc.handle()  # 这是阻塞调用，会一直等待消息
+
+
+# 创建一个线程来运行handle_lcm函数
+handle_thread = threading.Thread(target=handle_lcm)
+handle_thread.daemon = True  # 设置为守护线程，程序退出时会自动退出
+handle_thread.start()
 
 def test(args, cfg, tz, bert):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    max_timesteps = 200
     num_stages = 1
 
     rot_type = cfg.rot_type
     hist_len = cfg.hist_len
     
-    relevant_traj = np.load("coordiff_real_world/recollection_data/train/pour_water/episode_0/0000/relevant_traj.npy")
-    task_emb = np.load("coordiff_real_world/recollection_data/train/pour_water/episode_0/0000/task_language_embed.npy")
+    relevant_traj = np.load("coordiff_real_world/recollection_data_smooth5/train/pour3/episode_0/0000/relevant_traj.npy")
+    task_emb = np.load("coordiff_real_world/recollection_data_smooth5/train/pour3/episode_0/0000/task_language_embed.npy")
     task_emb = torch.from_numpy(task_emb).float().to(device)
+    max_timesteps = len(relevant_traj) - 1
 
     # 初始化模型
     arm_model, gripper_model = load_policy(cfg, device)
@@ -123,7 +147,7 @@ def test(args, cfg, tz, bert):
             torch.from_numpy(relative_pose).unsqueeze(0).unsqueeze(0).to(device)
         ], dim=1).float()
 
-    plot_stepwise_trajectory(generated_trajectory, gt_trajectory)
+    plot_stepwise_trajectory(generated_trajectory, None)
 
     # import matplotlib.pyplot as plt
     # from mpl_toolkits.mplot3d import Axes3D
@@ -181,7 +205,7 @@ def test(args, cfg, tz, bert):
 
 def deploy(args, cfg, tz, bert):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    max_timesteps = 200
+    max_timesteps = 500
     num_stages = 1
 
     rot_type = cfg.rot_type
@@ -286,6 +310,163 @@ def deploy(args, cfg, tz, bert):
             torch.from_numpy(relative_pose).unsqueeze(0).to(device)
         ], dim=1).float()
 
+def T_to_6D(T, rot_type):
+    pos = T[:3, 3]
+
+    if rot_type == 'quat':
+        rot = rotation_matrix_to_quaternion(T[:3, :3])
+    elif rot_type == 'rpy':
+        rot = rotation_matrix_to_rpy(T[:3, :3])
+    elif rot_type == '6d':
+        rot = pt3d.matrix_to_rotation_6d(
+            torch.from_numpy(T[:3, :3]).unsqueeze(0)
+        ).numpy().flatten()
+    else:
+        raise NotImplementedError("Unsupported rotation type")
+
+    return np.concatenate([pos, rot])
+def one_stage_deploy(args, cfg, tz, bert):
+    global relevant_pose_T
+
+    while relevant_pose_T is None:
+        time.sleep(0.001)
+        
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    max_timesteps = 2000
+    num_stages = 1
+
+    rot_type = cfg.rot_type
+    hist_len = cfg.hist_len
+    
+    task_emb = np.load("coordiff_real_world/recollection_data_smooth5/train/pour_water/episode_0/0000/task_language_embed.npy")
+    task_emb = torch.from_numpy(task_emb).float().to(device)
+
+    # 初始化模型
+    arm_model, gripper_model = load_policy(cfg, device)
+    DDIM = DDIMScheduler(**cfg.ddim_cfg)
+    DDIM.set_timesteps(cfg.eval_timesteps)
+    DDIM.alphas_cumprod = (DDIM.alphas_cumprod.to(device))
+
+    act_trunk = arm_model.act_trunk
+    input_dim = arm_model.input_dim
+    all_time_actions = np.zeros([max_timesteps, max_timesteps+act_trunk, input_dim])
+
+    ref_idx = 0
+    ref_idx += 1
+
+    relative_pose = T_to_6D(relevant_pose_T, rot_type="6d")  # transfer to 6d
+
+    hist_obs = torch.zeros([hist_len, input_dim]).unsqueeze(0).to(device).float()
+    hist_obs[-1] = torch.from_numpy(relative_pose).to(device).float()
+    gripper_state = np.array([0])
+    stage_change = torch.zeros(1).to(device).long()
+    state = torch.tensor([0]).to(device).long()
+
+    done = False
+    smooth_idx = 0
+
+    generated_trajectory = []
+
+    for i in tqdm(range(max_timesteps)):
+
+        encode_cache = arm_model.forward_enc(hist_obs, task_emb, state)
+
+        noicy_action = torch.randn((1, act_trunk, input_dim)).to(device)
+        for timestep in DDIM.timesteps:
+            # predict noise given timestep
+            batched_timestep = timestep.repeat(noicy_action.shape[0]).to(device)
+
+            noise_pred = arm_model.forward_dec(noicy_action, encode_cache, batched_timestep)
+
+            # take diffusion step
+            noicy_action = DDIM.step(
+                model_output=noise_pred,
+                timestep=timestep,
+                sample=noicy_action
+            ).prev_sample
+
+    
+        arm = noicy_action.detach().cpu().numpy().squeeze()
+        all_time_actions[smooth_idx][smooth_idx:smooth_idx+act_trunk] = arm
+        smooth_action = action_smooth(all_time_actions, smooth_idx)
+        smooth_action = arm[0]
+        stage_change = gripper_model(hist_obs, task_emb, state)
+        stage_change = stage_change.argmax().item()
+
+        pos = smooth_action[:3]
+        rot = pt3d.rotation_6d_to_matrix(
+            torch.from_numpy(smooth_action[3:]).unsqueeze(0)
+        ).numpy()
+
+        T_ref_o = np.eye(4)
+        T_ref_o[:3, :3] = rot
+        T_ref_o[:3, 3] = pos
+
+
+        T_cam_o_init = np.array(
+[[ 0.54714169,  0.83412749, -0.06976051, -0.24279163],
+ [-0.68700302,  0.39989394, -0.60672318, -0.0518562 ],
+ [-0.47818752,  0.37988883,  0.7918464 ,  0.69481892],
+ [ 0.        ,  0.        ,  0.        ,  1.        ]]
+        )
+
+        T_w_cam_init = np.array(
+           [ [ 0.62960319, -0.3529286,   0.69212804, -0.90763576],
+            [-0.77236577, -0.38061878,  0.50850808, -0.86760725],
+            [ 0.08396989, -0.85473431, -0.51222877,  0.40725306],
+            [ 0.0,         0.0,         0.0,         1.0]]
+        )
+
+        T_w_g_init = np.array(
+[[ 0.67856484, 0.73420454,-0.02221347,-0.50305481],
+ [ 0.73317809,-0.6788375 ,-0.04036748,-0.30088718],
+ [-0.04471732, 0.01110552,-0.99893795, 0.19382394],
+ [ 0.        , 0.        , 0.        , 1.        ]]
+        )
+
+        T_cam_ref_init = np.array(
+
+[[-0.98419512,  0.02920746,  0.17466143,  0.03016577],
+ [-0.11945616,  0.61860627, -0.77656692, -0.07847693],
+ [-0.13072816, -0.78515812, -0.60534033,  0.73773857],
+ [ 0.        ,  0.        ,  0.        ,  1.        ]]
+        )
+
+        T_o_g_init = np.linalg.inv(T_w_cam_init @ T_cam_o_init) @ T_w_g_init
+
+        T_w_g = T_w_cam_init @ T_cam_ref_init @ T_ref_o @ T_o_g_init
+        msg = Matrix4x4Flat()
+        msg.matrix = T_w_g.flatten().tolist()  # 将矩阵数据转化为列表
+        lc.publish("action", msg.encode())
+
+        print(T_w_g)
+
+        # generated_trajectory.append((pos, rot))  # 3, 3x3
+        generated_trajectory.append((T_w_g[:3, 3], T_w_g[:3, :3]))  # 3, 3x3
+
+        smooth_idx += 1
+
+
+        # if stage_change and state < num_stages:
+        #     state += 1
+        #     print(f"stage_change: {state}")
+        #     gripper_state = 1 - gripper_state
+            
+        #     if state == num_stages:
+        #         break
+
+        # 只需要更新移动物体的姿态，但是这种当参考物体发生移动的时候有问题
+        relative_pose = T_to_6D(relevant_pose_T, rot_type="6d")  # transfer to 6d
+        ref_idx += 1
+        
+        hist_obs = torch.cat([
+            hist_obs[:, 1:],
+            torch.from_numpy(relative_pose).unsqueeze(0).unsqueeze(0).to(device)
+        ], dim=1).float()
+
+    plot_stepwise_trajectory(generated_trajectory, None)
+
 def parse_args():
     parser = argparse.ArgumentParser(description="RLBench Dataset Generator")
     parser.add_argument('--save_path', '-s', type=str, default='./video_save', help='Where to save the demos.')
@@ -306,10 +487,11 @@ def main():
         # 加载配置文件
         cfg = compose(config_name="config")
 
-    cfg.arm_model_path = os.path.join(args.ckpt_dir, 'arm_model_best.ckpt')
-    cfg.gripper_model_path = os.path.join(args.ckpt_dir, 'gripper_model_best.ckpt')
+    cfg.arm_model_path = os.path.join(args.ckpt_dir, 'arm_model_last.ckpt')
+    cfg.gripper_model_path = os.path.join(args.ckpt_dir, 'gripper_model_last.ckpt')
    
-    test(args, cfg, tz, bert)
+    # test(args, cfg, tz, bert)
+    one_stage_deploy(args, cfg, tz, bert)
 
     print('Finish')
 

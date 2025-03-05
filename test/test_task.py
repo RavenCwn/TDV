@@ -45,6 +45,17 @@ for i, point in enumerate(waypoints):
         task._scene.step()
         task._scene._joint_position_action = np.append(path.get_executed_joint_position_action(), gripper_open)
         success, term = task._task.success()
+        obs = task._scene.get_observation()
+
+
+        left_pc = obs.left_shoulder_point_cloud
+        left_pc = left_pc.reshape((-1, 3))
+        import open3d
+        pcd = open3d.geometry.PointCloud()
+        pcd.points = open3d.utility.Vector3dVector(left_pc)
+        open3d.visualization.draw_geometries([pcd])
+        import ipdb; ipdb.set_trace()
+        
 
     point.end_of_path()
 

@@ -16,8 +16,9 @@ if __name__ == "__main__":
 
     CONFIG_NAME = args.config_name
     task_list = os.listdir(os.path.join(args.root_dir, 'train'))
-
     work_dir = "./results/coordiff_real"
+
+    task_list = ["leaf8"]
 
     if args.work_dir is None:
         work_dir = os.path.join(work_dir, f"{time.strftime('%m-%d_%H-%M-%S')}")
@@ -35,7 +36,7 @@ if __name__ == "__main__":
                     f" +work_dir={work_dir}"
                     f" use_language=True"
                     f" batch_size=32"
-                    f" batch_size=1024"
+                    # f" batch_size=1024"
                     f" num_states=5"
                     f" epochs=2001"
                     )

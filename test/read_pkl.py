@@ -12,9 +12,11 @@ def load_pkl_file(file_path):
         print(f"加载文件时出错: {e}")
         return None
 
-a = load_pkl_file("/home/c4090/trajectory_diff/coordiff/all_data/close_jar/variation0/episodes/episode3/low_dim_obs.pkl")
+a = load_pkl_file("/home/user/pgp/RLbench_Coordiff/color_data/insert_onto_square_peg/variation2/episodes/episode4/low_dim_obs.pkl")
 print(a)
 for o in (a._observations):
+    import ipdb; ipdb.set_trace()
+
     print(o.gripper_open)
     np.linalg.norm((o.gripper_touch_forces)[:3]) > 0.01
 

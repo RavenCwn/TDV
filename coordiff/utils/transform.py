@@ -204,6 +204,7 @@ def rpy_to_rotation_matrix(roll, pitch, yaw):
     return R
 
 
+
 def compute_relative_pose_T(move_obj, ref_obj):
     T_m, T_r = np.eye(4), np.eye(4)
     pos_m, quat_m = move_obj[:3], move_obj[3:]  # [x,y,z], [qx,qy,qz,qw]

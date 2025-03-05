@@ -6,4 +6,5 @@ easydict
 einops
 timm
 gymnasium
+swanlab
 # pytorch3d
