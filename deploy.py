@@ -3,19 +3,11 @@ import argparse
 import os
 from PIL import Image
 
-from rlbench.action_modes.action_mode import MoveArmThenGripper
-from rlbench.action_modes.arm_action_modes import EndEffectorPoseViaPlanning
-from rlbench.action_modes.gripper_action_modes import Discrete
-from rlbench.environment import Environment
-from rlbench.observation_config import ObservationConfig
-from rlbench.backend.utils import task_file_to_task_class
 
-import rlbench.backend.task as task
 import hydra
 import torch
 from easydict import EasyDict
 from transformers import AutoTokenizer, AutoModel
-from pyrep.objects import Object
 from coordiff.utils.transform import *
 from coordiff.models import *
 from hydra import initialize, compose
@@ -29,15 +21,16 @@ from eval_utils import *
 
 def test(args, cfg, tz, bert):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    max_timesteps = 200
     num_stages = 1
 
     rot_type = cfg.rot_type
     hist_len = cfg.hist_len
     
-    relevant_traj = np.load("coordiff_real_world/recollection_data/train/pour_water/episode_0/0000/relevant_traj.npy")
-    task_emb = np.load("coordiff_real_world/recollection_data/train/pour_water/episode_0/0000/task_language_embed.npy")
+    relevant_traj = np.load("coordiff_real_world/recollection_data_smooth5/train/pour_test/episode_2/0000/relevant_traj.npy")
+    task_emb = np.load("coordiff_real_world/recollection_data_smooth5/train/pour_test/episode_2/0000/task_language_embed.npy")
     task_emb = torch.from_numpy(task_emb).float().to(device)
+
+    max_timesteps = len(relevant_traj)-1
 
     # 初始化模型
     arm_model, gripper_model = load_policy(cfg, device)
@@ -123,7 +116,8 @@ def test(args, cfg, tz, bert):
             torch.from_numpy(relative_pose).unsqueeze(0).unsqueeze(0).to(device)
         ], dim=1).float()
 
-    plot_stepwise_trajectory(generated_trajectory, gt_trajectory)
+    plot_stepwise_trajectory(generated_trajectory, None)
+    # plot_stepwise_trajectory(generated_trajectory, gt_trajectory)
 
     # import matplotlib.pyplot as plt
     # from mpl_toolkits.mplot3d import Axes3D
