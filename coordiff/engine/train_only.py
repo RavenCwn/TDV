@@ -87,8 +87,8 @@ def main(cfg: DictConfig):
         swanlab.log({"gripper_trainable_parameters": trainable_params})
 
     if hasattr(cfg, "resume_path"):
-        arm_model.load_state_dict(torch.load(cfg.resume_path + '/arm_model_best.ckpt'))
-        gripper_model.load_state_dict(torch.load(cfg.resume_path + '/gripper_model_best.ckpt'))
+        arm_model.load_state_dict(torch.load(cfg.resume_path + '/arm_model_last.ckpt'))
+        gripper_model.load_state_dict(torch.load(cfg.resume_path + '/gripper_model_last.ckpt'))
         print("Successfully resume from: ", cfg.resume_path)
 
     DDIM = DDIMScheduler(**cfg.ddim_cfg)

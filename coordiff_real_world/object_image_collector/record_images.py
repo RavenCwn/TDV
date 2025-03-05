@@ -18,27 +18,27 @@ def create_episode_directory(task_dir, episode_index):
     """
     创建episode文件夹
     """
-    episode_dir = os.path.join(task_dir, f"episo de_{episode_index}")
+    episode_dir = os.path.join(task_dir, f"episode_{episode_index}")
     if not os.path.exists(episode_dir):
         os.makedirs(episode_dir)
         os.makedirs(os.path.join(episode_dir, "depth"))
         os.makedirs(os.path.join(episode_dir, "rgb"))
     return episode_dir
 
-def save_scene_camera_data(episode_dir, episode_index, timestamp, depth_sensor):
+def save_scene_camera_data(episode_dir, episode_index, timestamp, pipeline):
     """
     保存scene_camera.json数据，动态读取相机内参和深度比例因子
     """
-    # 获取相机的 depth 传感器的内参
-    depth_intrinsics = depth_sensor.get_stream_profiles()[0].as_video_stream_profile().get_intrinsics()
 
-    # 手动构造内参矩阵 K
-    cam_K = np.array([[depth_intrinsics.fx, 0, depth_intrinsics.ppx],
-                    [0, depth_intrinsics.fy, depth_intrinsics.ppy],
-                    [0, 0, 1]])
+    # 获取color（RGB）流的内参
+    color_stream_profile = pipeline.get_active_profile().get_stream(rs.stream.color)
+    color_intrinsics = color_stream_profile.as_video_stream_profile().get_intrinsics()
 
-
-    # 获取深度比例因子
+    # 手动构造color图像内参矩阵 K
+    cam_K = np.array([[color_intrinsics.fx, 0, color_intrinsics.ppx],
+                      [0, color_intrinsics.fy, color_intrinsics.ppy],
+                      [0, 0, 1]])
+    depth_sensor = pipeline.get_active_profile().get_device().first_depth_sensor()
     depth_scale = depth_sensor.get_depth_scale()
 
     scene_data = {
@@ -49,6 +49,7 @@ def save_scene_camera_data(episode_dir, episode_index, timestamp, depth_sensor):
             "depth_scale": depth_scale
         }
     }
+    print(scene_data)
 
     scene_camera_path = os.path.join(episode_dir, "scene_camera.json")
     with open(scene_camera_path, 'w') as json_file:
@@ -94,8 +95,6 @@ def main():
     align_to = rs.stream.color
     align = rs.align(align_to)
 
-    # 获取深度传感器
-    depth_sensor = pipeline.get_active_profile().get_device().first_depth_sensor()
 
     episode_index = 0
     recording = False
@@ -148,7 +147,7 @@ def main():
             print(f"结束录制数据，任务: {task_name}, Episode: {episode_index}")
             recording = False
             end_time = time.time()
-            save_scene_camera_data(episode_dir, episode_index, end_time - start_time, depth_sensor)
+            save_scene_camera_data(episode_dir, episode_index, end_time - start_time, pipeline)
             episode_index += 1
             frame_count = 0  # 重置帧计数器
 

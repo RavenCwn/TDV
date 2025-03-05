@@ -7,7 +7,6 @@ import hydra
 import torch
 from easydict import EasyDict
 from transformers import AutoTokenizer, AutoModel
-from pyrep.objects import Object
 from coordiff.utils.transform import *
 from coordiff.models import *
 from hydra import initialize, compose
@@ -62,6 +61,8 @@ def test(args, cfg, tz, bert):
     task_emb = np.load("coordiff_real_world/recollection_data_smooth5/train/pour3/episode_0/0000/task_language_embed.npy")
     task_emb = torch.from_numpy(task_emb).float().to(device)
     max_timesteps = len(relevant_traj) - 1
+
+    max_timesteps = len(relevant_traj)-1
 
     # 初始化模型
     arm_model, gripper_model = load_policy(cfg, device)

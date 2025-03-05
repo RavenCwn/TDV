@@ -39,5 +39,6 @@ if __name__ == "__main__":
                     # f" batch_size=1024"
                     f" num_states=5"
                     f" epochs=2001"
+                    f" +resume_path=results/coordiff_real/pour_test/03-01_03-46-50"
                     )
         os.system(commond)
