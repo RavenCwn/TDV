@@ -18,5 +18,7 @@ recollect_traj_data/
 rlbench_data.zip
 test_data/
 data
-logs*
+
+logs
+
 video_save

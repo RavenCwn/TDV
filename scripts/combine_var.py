@@ -11,6 +11,7 @@ from rlbench.action_modes.arm_action_modes import EndEffectorPoseViaPlanning
 from rlbench.action_modes.gripper_action_modes import Discrete
 from rlbench.tasks import ReachAndDrag
 from rlbench.tasks import CloseJar
+import argparse
 
 current_dir = os.path.dirname(os.path.abspath(__file__)) + '/../'
 
@@ -128,6 +129,9 @@ if __name__ == "__main__":
                     obj_name.txt
                     ...
     '''
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", "-m", required=True, type=str, help="train or val")
+    args = parser.parse_args()
 
     # task_dir = sorted(glob("all_data/*"))
     # output_dir = "combine_var_data"
@@ -169,10 +173,11 @@ if __name__ == "__main__":
     # mode = "train"
     
     num_epi_each_task = 25
-    mode = "val"
+    mode = args.mode
+    # mode = "val"
 
     task_dir = sorted(glob("color_data/*"))
-    output_dir = f"color_combine_var_data/{mode}"
+    output_dir = f"combine_var_data/{mode}"
     print(task_dir)
     for task in task_dir:
         task_name = task.split('/')[-1]

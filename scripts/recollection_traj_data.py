@@ -10,6 +10,7 @@ import shutil
 import torch
 import pytorch3d.transforms as pt3d
 from coordiff.utils.transform import *
+import argparse
 
 colors = [
     'red',
@@ -373,11 +374,16 @@ if __name__ == '__main__':
                     task_language_embed.npy
                     gripper_change.npy
     '''
-    mode = "val"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", "-m", required=True, type=str, help="train or val")
+    args = parser.parse_args()
+
+    mode = args
+    # mode = "val"
     # mode = "train"
 
-    root_dir = f"data/color_combine_var_data/{mode}"
-    recollection_dir = f"data/color3_recollect_traj_data/{mode}"
+    root_dir = f"data/combine_var_data/{mode}"
+    recollection_dir = f"data/recollect_traj_data/{mode}"
     task_name = sorted(os.listdir(root_dir))
     print(task_name)
 

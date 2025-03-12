@@ -43,7 +43,7 @@ if __name__ == "__main__":
     output_data_dir = "recollection_final/train"
 
     task_name_dirs = sorted(os.listdir(origin_data_dir))
-    task_name_dirs = ["leaf8"]
+    task_name_dirs = ["pour"]
 
     ''' init bert model '''
     tz, model = init_bert()
@@ -63,8 +63,10 @@ if __name__ == "__main__":
         for epi in episode_dirs:
             epi_dir = os.path.join(task_dir, epi)
             for state in range(1):
-                ref_obj = np.load(f"{epi_dir}/teajar_poses.npy")
-                move_obj = np.load(f"{epi_dir}/teaspoon_poses.npy")
+                # ref_obj = np.load(f"{epi_dir}/teajar_poses.npy")
+                # move_obj = np.load(f"{epi_dir}/teaspoon_poses.npy")
+                ref_obj = np.load(f"{epi_dir}/cup0_poses.npy")
+                move_obj = np.load(f"{epi_dir}/cup1_poses.npy")
 
                 print(f"ref_obj: {ref_obj.shape}, move_obj: {move_obj.shape}")
 

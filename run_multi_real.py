@@ -18,7 +18,7 @@ if __name__ == "__main__":
     task_list = os.listdir(os.path.join(args.root_dir, 'train'))
     work_dir = "./results/coordiff_real"
 
-    task_list = ["leaf8"]
+    task_list = ["pour"]
 
     if args.work_dir is None:
         work_dir = os.path.join(work_dir, f"{time.strftime('%m-%d_%H-%M-%S')}")
@@ -39,6 +39,6 @@ if __name__ == "__main__":
                     # f" batch_size=1024"
                     f" num_states=5"
                     f" epochs=2001"
-                    f" +resume_path=results/coordiff_real/pour_test/03-01_03-46-50"
+                    # f" +resume_path=results/coordiff_real/pour_test/03-01_03-46-50"
                     )
         os.system(commond)
