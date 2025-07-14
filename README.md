@@ -1,15 +1,20 @@
-# TbTd: Trajectory-based Transformer Diffusion
+# TDV: Trajectory-based Transformer Diffusion
 
 该工作主要是完成基于轨迹的diffusion model
 
-## 环境安装
+## 仿真实验
+
+### 1. 环境配置
+
 ```
 conda create -n coordiff python=3.9
 conda activate coordiff
 conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.6 -c pytorch -c conda-forge
 conda install pytorch3d -c pytorch3d
 ```
+
 可能遇到直接跳过的情况，这是因为 defaults 源没有 forvec 的依赖，需要换成清华源
+
 ```
 conda config --remove-key channels
 conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/
@@ -22,9 +27,7 @@ conda config --set show_channel_urls true
 
 然后按照rlbench的安装需要安装rlbench的依赖和库
 
-## 仿真实验
-
-### 1. 收集数据
+### 2. 收集数据
 
 ```
 # 这里一定要用自己的库，相对于官方的做出了部分修改
@@ -33,7 +36,7 @@ git clone git@github.com:inFpZero/RLbench_Coordiff.git
 bash collected_data.sh
 ```
 
-### 2. 训练
+### 3. 训练
 
 配置 coordiff 环境
 ```
@@ -62,7 +65,7 @@ python run_multi_sp.py -d data_path -c model_config_name -w save_dir # 不同 di
 python train/run_multi.py -d data/color3_recollect_traj_data -c coordiff_mlp_rms -w coordiff_mlp_rms_all_task  # 相同 diffusion 步长的arm model 和 gripper model
 ```
 
-### 3. 验证
+### 4. 验证
 
 ```
 bash bash_eval.sh
@@ -169,10 +172,6 @@ bash download_ckpts.sh
 ```
 
 ---
-
-## 
-
-### 2. 数据采集
 
 ### 2. 数据增强 + 训练 Diffusion 模型
 
