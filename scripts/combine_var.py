@@ -176,7 +176,7 @@ if __name__ == "__main__":
     mode = args.mode
     # mode = "val"
 
-    task_dir = sorted(glob("color_data/*"))
+    task_dir = sorted(glob("data/*"))
     output_dir = f"combine_var_data/{mode}"
     print(task_dir)
     for task in task_dir:
