@@ -202,6 +202,7 @@ def plot_stepwise_trajectory(generated_trajectory, gt_trajectory):
     # Create a 3D plot
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection='3d')
+    # plt.gca().set_aspect('equal')
 
     # 仅在生成的轨迹非空时进行可视化
     if generated_trajectory is not None and len(generated_trajectory) > 0:

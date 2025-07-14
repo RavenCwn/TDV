@@ -23,7 +23,8 @@ train_gpus: [0]
 
 # Training
 lr: 5e-4
-batch_size: 128
+# batch_size: 128
+batch_size: ${batch_size}
 mix_precision: false
 num_workers: 0
 val_freq: 5
@@ -101,7 +102,8 @@ arm_model_cfg:
     hidden_dim: 64
     mlp_hidden_dim: 256  # 64 * 4
     drop_rate: 0.1
-    num_layers: 4
+    num_layers: 4   # 原始
+    # num_layers: 8   
     nhead: 2
   dit_cfg:
     model_cls: DiTBlock
@@ -111,12 +113,13 @@ arm_model_cfg:
     mlp_ratio: 4
     attn_drop: 0.1
     proj_drop: 0.1
-    depth: 4
+    depth: 4  # 原始
+    # depth: 8  
   language_enc_cfg:
     network_name: MLPEncoder
     input_dim: 768
     hidden_dim: 128
-    num_layers: 1
+    num_layers: 1   
 
 
 dataset_cfg:

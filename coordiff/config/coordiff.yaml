@@ -43,6 +43,7 @@ hist_len: 30  # or 15
 rot_type: '6d'
 hidden_dim: 64
 act_trunk: 10
+# act_trunk: 1
 use_language: False
 num_states: 2
 eval_timesteps: 8

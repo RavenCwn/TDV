@@ -94,12 +94,67 @@ class TrajDataset(Dataset):
         task_emb = np.load(osp.join(epi, state, "task_language_embed.npy")).squeeze()
         # print(gripper_change.shape, relevant_traj.shape, task_emb.shape)
 
+        """
+        只填充首端
+        """
         demo_len = relevant_traj.shape[0]
-
         relevant_traj = np.concatenate([relevant_traj, np.repeat(relevant_traj[-1:], self.hist_len, axis=0)], axis=0)
         gripper_change = np.concatenate([gripper_change[self.hist_len:], np.repeat(gripper_change[-1:], self.hist_len, axis=0)], axis=0)  # no chunk
         action = np.concatenate([relevant_traj[self.hist_len:], np.repeat(relevant_traj[-1:], self.act_chunk, axis=0)], axis=0)
+
         # print(gripper_change.shape, relevant_traj.shape, action.shape)
+
+
+        """
+        首尾都填充，首部填充值（不行：终点有问题）
+        """
+        # demo_len = relevant_traj.shape[0] + self.hist_len - 1
+        # relevant_traj = np.concatenate([
+        #     np.repeat(relevant_traj[0:1], self.hist_len-1, axis=0),
+        #     relevant_traj,
+        #     np.repeat(relevant_traj[-1:], self.hist_len, axis=0)
+        # ], axis=0)
+        # gripper_change = np.concatenate([
+        #     gripper_change[1:],
+        #     np.repeat(gripper_change[-1:], self.hist_len, axis=0)], axis=0)  # no chunk
+        # action = np.concatenate([
+        #     relevant_traj[1:],
+        #     np.repeat(relevant_traj[-1:], self.act_chunk, axis=0)
+        # ], axis=0)
+
+        """
+        首尾都填充,首部填充0(不行：直接不收敛)
+        """
+        # demo_len = relevant_traj.shape[0] + self.hist_len - 1
+        # relevant_traj = np.concatenate([
+        #     np.repeat(np.array([0, 0, 0, 0, 0, 0, 0, 0, 0]).reshape(1, -1), self.hist_len-1, axis=0),
+        #     relevant_traj,
+        #     np.repeat(relevant_traj[-1:], self.hist_len, axis=0)
+        # ], axis=0)
+        # gripper_change = np.concatenate([
+        #     gripper_change[1:],
+        #     np.repeat(gripper_change[-1:], self.hist_len, axis=0)], axis=0)  # no chunk
+        # action = np.concatenate([
+        #     relevant_traj[1:],
+        #     np.repeat(relevant_traj[-1:], self.act_chunk, axis=0)
+        # ], axis=0)
+
+        """
+        首尾都填充,首部填充0(不行：直接不收敛)
+        """
+        # demo_len = relevant_traj.shape[0]-1
+        # relevant_traj = np.concatenate([
+        #     np.repeat(relevant_traj[0:1], self.hist_len-1, axis=0),
+        #     relevant_traj
+        # ], axis=0)
+        # gripper_change = np.concatenate([
+        #     gripper_change[1:],
+        #     np.repeat(gripper_change[-1:], self.hist_len, axis=0)], axis=0)  # no chunk
+        # action = np.concatenate([
+        #     np.repeat(relevant_traj[-1:], self.act_chunk, axis=0),
+        #     relevant_traj[1:]
+        # ], axis=0)
+
 
         return demo_len, relevant_traj, gripper_change, task_emb, action, np.array(float(state))
 

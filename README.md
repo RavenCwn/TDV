@@ -55,14 +55,14 @@ python run_multi.py -d data_path -c model_config_name -w save_dir  # 相同 diff
 python run_multi_sp.py -d data_path -c model_config_name -w save_dir # 不同 diffusion 步长的arm model 和 gripper model
 
 # example
-python run_multi.py -d data/color3_recollect_traj_data -c coordiff_mlp_rms -w coordiff_mlp_rms_all_task  # 相同 diffusion 步长的arm model 和 gripper model
+python train/run_multi.py -d data/color3_recollect_traj_data -c coordiff_mlp_rms -w coordiff_mlp_rms_all_task  # 相同 diffusion 步长的arm model 和 gripper model
 ```
 
 训练真实数据
 ```
-python run_multi_real.py -d coordiff_real_world/data_real/leaf8 -c coordiff_mlp_rms -w coordiff_mlp_rms_leaf  # 相同 diffusion 步长的arm model 和 gripper model
+python train/run_multi_real.py -d coordiff_real_world/data_real/leaf8 -c coordiff_mlp_rms -w coordiff_mlp_rms_leaf  # 相同 diffusion 步长的arm model 和 gripper model
 ```
-
+python train/run_multi_real.py -d coordiff_real_world/recollection_final -c coordiff_mlp_rms -w coordiff_mlp_rms_leaf -t teapot_coaster_single_01234_rottest
 
 # 4. 验证
 
@@ -75,3 +75,14 @@ bash bash_eval.sh
 ```
 python deploy.py -c results/coordiff_real/lip8/03-02_03-22-38
 ```
+python deploy.py -c results/coordiff_real/coordiff_mlp_rms_leaf/04-02_22-35-07
+python deploy.py -c results/coordiff_real/coordiff_mlp_rms_leaf/04-01_16-29-44
+python deploy.py  -c results/coordiff_real/coordiff_mlp_rms_leaf/rot
+python deploy.py  -c results/coordiff_real/coordiff_mlp_rms_leaf/put_new5_gen_plane_3000
+
+python deploy_silky.py  -c results/coordiff_real/coordiff_mlp_rms_leaf/put_new6_gen_plane
+
+python deploy_simulate.py  -c results/coordiff_real/coordiff_mlp_rms_leaf/put_new6_gen_scale_all
+python deploy_simulate.py  -c results/coordiff_real/coordiff_mlp_rms_leaf/teapot_coaster_single_01234
+python deploy_hand_simulate.py  -c results/coordiff_real/coordiff_mlp_rms_leaf/hand_put1_gen_scale_12
+python deploy_hand.py  -c results/coordiff_real/coordiff_mlp_rms_leaf/hand_put1
