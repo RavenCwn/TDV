@@ -158,7 +158,7 @@ pip install opencv-python supervision transformers
 ##### 1️⃣1️⃣ 下载所有模型权重
 
 ```bash
-cd Foundationpose
+cd AutoPoseEstimator_simple/Foundationpose
 python download_weights.py
 
 
