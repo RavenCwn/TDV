@@ -178,6 +178,7 @@ bash download_ckpts.sh
 训练真实数据
 
 ```
+cd eval_realworld
 bash all_obj_xxx.sh	
 ```
 
